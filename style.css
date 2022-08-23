@@ -1,0 +1,377 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+@font-face {
+  font-family: "DePixel Halbfett";
+  src: url("assets/depixelhalbfett.otf");
+}
+@font-face {
+  font-family: "DePixel Klein";
+  src: url("assets/depixelklein.otf");
+}
+@font-face {
+  font-family: "DePixel Illegible";
+  src: url("assets/depixelillegible.otf");
+}
+@-webkit-keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@-webkit-keyframes reveal {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes reveal {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@-webkit-keyframes reveal-hide {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes reveal-hide {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@-webkit-keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@-webkit-keyframes line-throb {
+  0% {
+    stroke-width: 0.2vmin;
+  }
+  50% {
+    stroke-width: 0.26vmin;
+  }
+  100% {
+    stroke-width: 0.2vmin;
+  }
+}
+@keyframes line-throb {
+  0% {
+    stroke-width: 0.2vmin;
+  }
+  50% {
+    stroke-width: 0.26vmin;
+  }
+  100% {
+    stroke-width: 0.2vmin;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-size: 2vmin;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  background: rgb(0, 0, 0);
+  font-family: "DePixel Klein";
+  color: white;
+  text-rendering: geometricPrecision;
+  overflow: hidden;
+}
+
+section {
+  position: absolute;
+  width: 100vmin;
+  height: 100vmin;
+  overflow: hidden;
+}
+
+#graph {
+  position: absolute;
+  fill: none;
+  z-index: -100;
+}
+#graph path {
+  z-index: inherit;
+  stroke-width: 0.2vmin;
+  stroke: rgba(255, 255, 255, 0.5);
+  opacity: calc(0.3 + (15 - var(--depth)) / 15);
+}
+
+node.entity {
+  --depth: 0;
+  --zind: -1;
+  opacity: 1;
+  -webkit-animation: reveal 300ms 1 forwards;
+          animation: reveal 300ms 1 forwards;
+}
+node.entity .body {
+  --r: 5;
+  height: calc(var(--r) * 1rem);
+  width: calc(var(--r) * 1rem);
+  background-color: transparent;
+  background-size: cover;
+  box-shadow: none;
+  opacity: calc((15 - var(--depth)) / 15);
+  transform-origin: center center;
+  transition: opacity 300ms ease;
+}
+
+section#playarea {
+  background: rgb(10, 10, 10);
+  z-index: -1000;
+}
+section#playarea #readyup {
+  font-family: "DePixel Illegible";
+  text-align: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(6rem);
+  opacity: 0;
+  -webkit-animation: blink 1s infinite 7.3s;
+          animation: blink 1s infinite 7.3s;
+}
+
+section#intro {
+  z-index: 1000;
+  display: flex;
+  place-content: center;
+  place-items: center;
+  text-align: center;
+  text-shadow: 0 0 1rem black, 0 0 1rem black, 0 0 1rem black, 0 0 1rem black;
+}
+section#intro > div {
+  transform: translateY(-10rem);
+}
+section#intro #title {
+  font-family: "DePixel Halbfett";
+  font-size: 3rem;
+  opacity: 0;
+  -webkit-animation: reveal-hide 6s linear 1s 1 forwards;
+          animation: reveal-hide 6s linear 1s 1 forwards;
+}
+section#intro #subtitle {
+  font-family: "DePixel Klein";
+  font-size: 2rem;
+  opacity: 0;
+  -webkit-animation: reveal-hide 5s linear 2s 1 forwards;
+          animation: reveal-hide 5s linear 2s 1 forwards;
+}
+
+.entity {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  display: grid;
+  place-content: center;
+  z-index: var(--zind);
+  --x: 0;
+  --y: 0;
+  --zind: 50;
+  --color: white;
+  --scale: 1;
+  --gothit: 0;
+  transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin));
+  transition: all 56ms ease;
+}
+.entity .body {
+  width: 1rem;
+  height: 2rem;
+  background-color: var(--color);
+  border-radius: 45%;
+  box-shadow: 0 0 10px 0 black;
+  --skew-h: 0;
+  --skew-v: 0;
+  --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0;
+  --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1;
+  transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale));
+  transform-origin: bottom center;
+  transition: transform 56ms ease, filter 20ms ease;
+}
+.entity .shadow {
+  width: 1rem;
+  height: 1rem;
+  background-color: black;
+  border-radius: 100%;
+  position: absolute;
+  top: -0.5rem;
+  left: -0.5rem;
+  z-index: -1;
+  filter: blur(5px);
+  transform: rotateX(60deg) scale(1.5);
+}
+.entity .rangefinder {
+  position: absolute;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent calc(71% - 0.2vmin), white calc(71% - 0.2vmin));
+  background-size: cover;
+  height: calc(var(--radius) * 1rem);
+  width: calc(var(--radius) * 1rem);
+  transform: translate(-50%, -50%);
+  transition: opacity 100ms ease;
+  border-radius: 50%;
+  z-index: calc(var(--y) - 1);
+}
+.entity .rangefinder.active {
+  transition: none;
+}
+.entity .hp {
+  position: absolute;
+  bottom: -20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.2rem;
+  height: 0.3rem;
+  background-color: black;
+  border: solid 1px var(--color);
+  outline: solid 1px black;
+  opacity: var(--gothit);
+}
+.entity .hp .hp-bar {
+  --hp: 0;
+  width: var(--hp);
+  height: 100%;
+  background-color: var(--color);
+}
+.entity.hit .body {
+  --scale: 1.1;
+  filter: brightness(1.5);
+  transition: transform 30ms ease, filter 30ms ease;
+}
+.entity.moving-left:not(.moving-right) .body {
+  --matrix: 1, 0, -0.05, 1, 1, 0;
+}
+.entity.moving-left:not(.moving-right).sprinting .body {
+  --matrix: 1, 0, -0.1, 1, 2, 0;
+}
+.entity.moving-right:not(.moving-left) .body {
+  --matrix: 1, 0, 0.05, 1, -1, 0;
+}
+.entity.moving-right:not(.moving-left).sprinting .body {
+  --matrix: 1, 0, 0.1, 1, -2, 0;
+}
+.entity.moving-up:not(.moving-down) .body {
+  --matrixtd: 1, 0, 0, 0, 0, 0.95, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1;
+}
+.entity.moving-up:not(.moving-down).sprinting .body {
+  --matrixtd: 1, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1;
+}
+.entity.moving-down:not(.moving-up) .body {
+  --matrixtd: 1, 0, 0, 0, 0, 1.05, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1;
+}
+.entity.moving-down:not(.moving-up).sprinting .body {
+  --matrixtd: 1, 0, 0, 0, 0, 1.1, 0, 0, 0, 0, 1, 0, 0, -2, 0, 1;
+}
+
+#player {
+  --color: rgb(0, 217, 255);
+}
+#player .rangefinder {
+  transition: opacity 100ms ease;
+}
+
+.enemy {
+  --color: rgb(150, 0, 0);
+}
+.enemy .body {
+  border-radius: 100% 100% 0 0;
+}
+
+.mage {
+  --color: rgb(0, 100, 255);
+}
+.mage .body {
+  height: 2.5rem;
+  width: 0.8rem;
+  border-radius: 0 0 100% 100%;
+}
+
+#nonagon-infinity .body {
+  border: double 0.2vmin red;
+  border: none;
+  background: none;
+}
+
+#incantation-circle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+#incantation-circle #circle-lines path {
+  stroke-width: 0;
+  stroke: red;
+}
+/*# sourceMappingURL=style.css.map */

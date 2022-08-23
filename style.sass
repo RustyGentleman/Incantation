@@ -1,0 +1,289 @@
+// --- Imports ---
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap')
+@font-face
+   font-family: 'DePixel Halbfett'
+   src: url('assets/depixelhalbfett.otf')
+@font-face
+   font-family: 'DePixel Klein'
+   src: url('assets/depixelklein.otf')
+@font-face
+   font-family: 'DePixel Illegible'
+   src: url('assets/depixelillegible.otf')
+// ------------------
+// --- Variables ----
+// ------------------
+
+$g-strokes: 0.2vmin
+$pa-background: rgb(10, 10, 10)
+$hp: rgb(200, 0, 0)
+$max-depth: 15
+
+// --- Animation Keyframes ---
+
+@keyframes spin 
+   0%
+      transform: rotate(0deg)
+   100%
+      transform: rotate(360deg)
+@keyframes reveal
+   0%
+      opacity: 0
+   100%
+      opacity: 1
+@keyframes reveal-hide
+   0%
+      opacity: 0
+   35%
+      opacity: 1
+   65%
+      opacity: 1
+   100%
+      opacity: 0
+@keyframes blink
+   0%
+      opacity: 0
+   25%
+      opacity: 0
+   50%
+      opacity: 1
+   75%
+      opacity: 1
+   100%
+      opacity: 0
+@keyframes line-throb
+   0%
+      stroke-width: $g-strokes
+   50%
+      stroke-width: calc($g-strokes * 1.3)
+   100%
+      stroke-width: $g-strokes
+
+// ------------------
+// --- Structural ---
+// ------------------
+
+*
+   box-sizing: border-box
+:root
+   font-size: 2vmin
+body
+   width: 100vw
+   height: 100vh
+   margin: 0
+   display: flex
+   align-items: center
+   align-content: center
+   justify-content: center
+   background: rgb(0, 0, 0)
+   font-family: 'DePixel Klein'
+   color: white
+   text-rendering: geometricPrecision
+   overflow: hidden
+section
+   position: absolute
+   width: 100vmin
+   height: 100vmin
+   overflow: hidden
+
+
+// ------------------
+// --- Base stuff ---
+// ------------------
+
+#graph
+   position: absolute
+   fill: none
+   z-index: -100
+   path
+      z-index: inherit
+      stroke-width: $g-strokes
+      // stroke-width: 0
+      stroke: rgba(255, 255, 255, 0.5)
+      opacity: calc(0.3 + ($max-depth - var(--depth)) / $max-depth)
+node.entity
+   --depth: 0
+   --zind: -1
+   opacity: 1
+   animation: reveal 300ms 1 forwards
+   .body
+      --r: 5
+      height: calc(var(--r) * 1rem)
+      width: calc(var(--r) * 1rem)
+      background-color: transparent
+      background-size: cover
+      // border: solid $g-strokes white
+      box-shadow: none
+      opacity: calc( ($max-depth - var(--depth)) / $max-depth)
+      transform-origin: center center
+      transition: opacity 300ms ease
+
+// ------------------
+// ----- Intro ------
+// ------------------
+
+section#playarea
+   background: $pa-background
+   z-index: -1000
+   #readyup
+      font-family: 'DePixel Illegible'
+      text-align: center
+      position: absolute
+      top: 50%
+      left: 50%
+      transform: translateX(-50%) translateY(6rem)
+      opacity: 0
+      animation: blink 1s infinite 7.3s
+section#intro
+   z-index: 1000
+   display: flex
+   place-content: center
+   place-items: center
+   text-align: center
+   text-shadow: 0 0 1rem black, 0 0 1rem black, 0 0 1rem black, 0 0 1rem black
+   >div
+      transform: translateY(-10rem)
+   #title
+      font-family: 'DePixel Halbfett'
+      font-size: 3rem
+      opacity: 0
+      animation: reveal-hide 6s linear 1s 1 forwards
+   #subtitle
+      font-family: 'DePixel Klein'
+      font-size: 2rem
+      opacity: 0
+      animation: reveal-hide 5s linear 2s 1 forwards
+
+// ------------------
+// ---- Elements ----
+// ------------------
+
+.entity
+   position: absolute
+   left: 50%
+   top: 50%
+   width: 0
+   height: 0
+   display: grid
+   place-content: center
+   z-index: var(--zind)
+   --x: 0
+   --y: 0
+   --zind: 50
+   --color: white
+   --scale: 1
+   --gothit: 0
+   transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin))
+   transition: all 56ms ease
+   .body
+      width: 1rem
+      height: 2rem
+      background-color: var(--color)
+      border-radius: 45%
+      box-shadow: 0 0 10px 0 black
+      --skew-h: 0
+      --skew-v: 0
+      --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0
+      --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1
+      // --matrix: 1, 0, 0.05, 1, -1, 0
+      // --matrixtd: 1, 0, 0, 0, 0, 1.05, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1
+      transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale))
+      transform-origin: bottom center
+      transition: transform 56ms ease, filter 20ms ease
+   .shadow
+      width: 1rem
+      height: 1rem
+      background-color: black
+      border-radius: 100%
+      position: absolute
+      top: -0.5rem
+      left: -0.5rem
+      z-index: -1
+      filter: blur(5px)
+      transform: rotateX(60deg) scale(1.5)
+   .rangefinder
+      position: absolute
+      background-image: radial-gradient(circle, rgb(255 255 255 / 10%) 0%, transparent calc(71% - $g-strokes), white calc(71% - $g-strokes))
+      // background-image: url('assets/flash.png')
+      background-size: cover
+      height: calc(var(--radius) * 1rem)
+      width: calc(var(--radius) * 1rem)
+      // opacity: var(--opacity)
+      transform: translate(-50%, -50%)
+      transition: opacity 100ms ease
+      border-radius: 50%
+      z-index: calc(var(--y) - 1)
+      &.active
+         transition: none
+   .hp
+      position: absolute
+      bottom: -20%
+      left: 50%
+      transform: translateX(-50%)
+      width: 1.2rem
+      height: 0.3rem
+      background-color: black
+      border: solid 1px var(--color)
+      outline: solid 1px black
+      opacity: var(--gothit)
+      .hp-bar
+         --hp: 0
+         width: var(--hp)
+         height: 100%
+         background-color: var(--color)
+   &.hit
+      .body
+         --scale: 1.1
+         filter: brightness(1.5)
+         transition: transform 30ms ease, filter 30ms ease
+   &.moving-left:not(.moving-right)
+      .body
+         --matrix: 1, 0, -0.05, 1, 1, 0
+      &.sprinting .body
+         --matrix: 1, 0, -0.1, 1, 2, 0
+   &.moving-right:not(.moving-left)
+      .body
+         --matrix: 1, 0, 0.05, 1, -1, 0
+      &.sprinting .body
+         --matrix: 1, 0, 0.1, 1, -2, 0
+   &.moving-up:not(.moving-down)
+      .body
+         --matrixtd: 1, 0, 0, 0, 0, 0.95, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1
+      &.sprinting .body
+         --matrixtd: 1, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1
+   &.moving-down:not(.moving-up)
+      .body
+         --matrixtd: 1, 0, 0, 0, 0, 1.05, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1
+      &.sprinting .body
+         --matrixtd: 1, 0, 0, 0, 0, 1.1, 0, 0,  0, 0, 1, 0, 0, -2, 0, 1
+
+#player
+   --color: rgb(0, 217, 255)
+   .rangefinder
+      // filter: hue-rotate(hue(cyan))
+      transition: opacity 100ms ease
+
+.enemy
+   --color: rgb(150, 0, 0)
+   .body
+      border-radius: 100% 100% 0 0
+.mage
+   --color: rgb(0, 100, 255)
+   .body
+      height: 2.5rem
+      width: 0.8rem
+      border-radius: 0 0 100% 100%
+
+#nonagon-infinity
+   .body
+      border: double $g-strokes red
+      border: none
+      background: none
+#incantation-circle
+   position: absolute
+   width: 100%
+   height: 100%
+   #circle-lines
+      // animation: spin 30s linear infinite 3s
+      path
+         stroke-width: 0
+         stroke: red
