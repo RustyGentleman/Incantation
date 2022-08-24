@@ -282,6 +282,7 @@ section#intro #subtitle {
   width: calc(var(--radius) * 1rem);
   transform: translate(-50%, -50%);
   transition: opacity 100ms ease;
+  transition: none;
   border-radius: 50%;
   z-index: calc(var(--y) - 1);
 }
@@ -339,10 +340,6 @@ section#intro #subtitle {
 #player {
   --color: rgb(0, 217, 255);
 }
-#player .rangefinder {
-  transition: opacity 100ms ease;
-}
-
 .enemy {
   --color: rgb(150, 0, 0);
 }
@@ -373,5 +370,14 @@ section#intro #subtitle {
 #incantation-circle #circle-lines path {
   stroke-width: 0;
   stroke: red;
+}
+
+#overlay {
+  mix-blend-mode: overlay;
+  transition: background-color 300ms ease;
+}
+#overlay.gameover {
+  transition: background-color 3000ms ease;
+  background-color: red;
 }
 /*# sourceMappingURL=style.css.map */

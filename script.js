@@ -54,36 +54,40 @@ const MAX_DEPTH = 15
 const SPAWNER_DECINTERVAL = 10000
 const SPAWNER_DEC = 100
 const SPAWNER_INITIAL = 3000
+
+let has_focus = true
+let spawn_enemies = true
+let game_over = false
+let spawner
 // ?--------- Quick-access variables ---------- //
 let $player
 let $playarea
 let playarea
 let $graphics
 let $graph
+let $overlay
 let center
-let has_focus = true
-let can_start = false
-let spawn_enemies = true
 // ?------------ Runtime variables ------------ //
 let mouse = {
 	pos: {x:0, y:0},
-	inPlayArea: false
+	inPlayArea: false,
+	holdL: false,
+	holdR: false,
 }
-let player = {
-	pos: {x:0, y:0},
-	atk: PLAYER_ATK,
-	isAttacking: false,
-	attackCooldown: false,
-	movement: {able:true, left:false, up:false, right:false, down:false, sprint:false},
-	line: null,
-	ready: false,
-	controlWithMouse: true,
-}
+
 let entities = []
 let mages = []
 let enemies = []
 let EntityID = 0
 let NodeID = 0
+
+let player = new Entity()
+player.element.attr('id', 'player')
+player.atk = PLAYER_ATK
+player.isAttacking = false
+player.attackCooldown = false
+player.movement = {able:true, is:false, left:false, up:false, right:false, down:false, sprint:false}
+player.ready = false
 // ?--------------- Graph stuff --------------- //
 let nodes = []
 let lines = []
@@ -109,7 +113,6 @@ function Line(node1, node2) {
 	this.ends = {v: node1, w: node2}
 	this.element = DrawLine(node1.pos, node2.pos)
 		.css('--depth', Math.max(node1.depth, node2.depth))
-		// .css('opacity', `${0.3 + (MAX_DEPTH / Math.max(node1.depth, node2.depth)) / MAX_DEPTH}`)
 	log(Math.max(node1.depth, node2.depth))
 
 	node1.neighbors?.push(node2)
@@ -137,7 +140,7 @@ function Entity(hp=100, clss='') {
 	this.maxHP = hp
 	this.hp = hp
 	this.element = $(
-		`<div class="entity" id="${this.id}">
+		`<div class="entity" data-id="${this.id}">
 			<div class="body">
 				<div class="hp">
 					<div class="hp-bar"></div>
@@ -158,12 +161,21 @@ function Entity(hp=100, clss='') {
 		this.element.remove()
 		return this
 	}
-	this.SetPos = (x, y) => {
+	this.SetPos = (x, y, skew=false) => {
+		this.element
+			.css('--x', x)
+			.css('--y', y)
+			.css('--zind', round(y)+50)
+		if (skew) {
+			let angle = angle_between(this.pos, {x, y})
+			let stride = distance_between(this.pos, {x, y}) 
+			this.element.find('.body')
+				.css('--skew-h', -cos(angle) * (stride / PLAYER_SPEED) * 1)
+				.css('--skew-v', -sin(angle) * (stride / PLAYER_SPEED) * 1)
+				.css('--angle', angle * (180 / PI))
+		}
 		this.pos.x = x
 		this.pos.y = y
-		this.element.css('--x', x)
-		this.element.css('--y', y)
-		this.element.css('--zind', round(y)+50)
 		return this
 	}
 	this.GetAttacked = (hit) => {
@@ -180,7 +192,7 @@ function Enemy(hp=ENEMY_HP, atk=ENEMY_ATK) {
 	this.id = this.entity.id
 	this.pos = this.entity.pos
 	this.element = this.entity.element
-	// this.maxHP = this.entity.maxHP
+	this.maxHP = this.entity.maxHP
 	this.hp = this.entity.hp
 	this.atk = atk
 	this.atkRange = ENEMY_ATK_RANGE
@@ -199,8 +211,8 @@ function Enemy(hp=ENEMY_HP, atk=ENEMY_ATK) {
 		this.element.remove()
 		return this
 	}
-	this.SetPos = (x, y) => {
-		this.entity.SetPos(x, y)
+	this.SetPos = (x, y, skew=false) => {
+		this.entity.SetPos(x, y, skew)
 		return this
 	}
 	this.Place = () => {
@@ -213,7 +225,10 @@ function Enemy(hp=ENEMY_HP, atk=ENEMY_ATK) {
 		this.SetPos(p.x, p.y)
 		return this
 	}
-	this.Move = () => {
+	this.Act = () => {
+		this.element.find('.body')
+			.css('--skew-h', 0)
+			.css('--skew-v', 0)
 		if (this.hp <= 0) return
 		this.target = FindClosest(1000000, mages, this)
 		let distance = distance_between(this.pos, this.target.pos)
@@ -222,7 +237,7 @@ function Enemy(hp=ENEMY_HP, atk=ENEMY_ATK) {
 			return
 		}
 		let pos = move_towards(this.pos, this.target.pos, this.speed)
-		this.SetPos(pos.x, pos.y)
+		this.SetPos(pos.x, pos.y, true)
 	}
 	this.GetAttacked = (hit) => {
 		this.hp = this.entity.GetAttacked(hit)
@@ -264,6 +279,7 @@ function Mage() {
 	}
 	this.GetAttacked = (hit) => {
 		this.hp = this.entity.GetAttacked(hit)
+		FlashOverlay('rgb(255 0 0 / 30%)')
 		if (this.hp <= 0)
 			this.Die()
 	}
@@ -279,6 +295,7 @@ function Mage() {
 			step: (now) => $(magelines).css('stroke-width', `max(${now}px, ${now/10}vmin)`),
 			complete: () => $(magelines).remove()
 		})
+		FlashOverlay('rgb(255 0 0 / 100%)')
 		this.Remove()
 		return this
 	}
@@ -292,37 +309,42 @@ function Mage() {
 // ?-------------- Runtime code --------------- //
 $(function(){
 	log('Ready')
-	player.movement.able = true
+	UpdateVariables()
+	$playarea.prepend(player.element)
 	UpdateVariables()
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
-	$(window).on('mousemove', (e) =>
-		mouse.pos = {
-			x: (e.clientX-playarea.getBoundingClientRect().x)/vmin(1) - 50,
-			y: (e.clientY-playarea.getBoundingClientRect().y)/vmin(1) - 50
-		})
+	$('*').on('selectstart', () => {return false})
+	$(window).on('contextmenu', (e) => e.preventDefault())
+	$(window).on('mousemove', (e) => mouse.pos = {
+		x: (e.clientX-playarea.getBoundingClientRect().x)/vmin(1) - 50,
+		y: (e.clientY-playarea.getBoundingClientRect().y)/vmin(1) - 50
+	})
+	$(window).on('mousedown', (e) => {
+		if (e.button == 0) mouse.holdL = true
+		if (e.button == 2) mouse.holdR = true
+	})
+	$(window).on('mouseup', (e) => {
+		if (e.button == 0) mouse.holdL = false
+		if (e.button == 2) mouse.holdR = false
+	})
 	$(window).on('keydown', (e) => {
-		// log(e.which)
 		switch (e.which){
 			case 37:
 			case 65:
 				player.movement.left = true
-				player.controlWithMouse = false
 				break
 			case 39:
 			case 68:
 				player.movement.right = true
-				player.controlWithMouse = false
 				break
 			case 38:
 			case 87:
 				player.movement.up = true
-				player.controlWithMouse = false
 				break
 			case 40:
 			case 83:
 				player.movement.down = true
-				player.controlWithMouse = false
 				break
 			case 16:
 				player.movement.sprint = true
@@ -330,12 +352,8 @@ $(function(){
 			case 32:
 				player.isAttacking = true
 				break
-			case 80:
-				player.ready = true
-				break
-			}
-			// log(e.which)
-		})
+		}
+	})
 	$(window).on('keyup', (e) => {
 		switch (e.which){
 			case 37:
@@ -411,12 +429,17 @@ $(function(){
 			.css('animation', 'none')
 
 	let start = setInterval(() => {
-		if (can_start && player.ready) {
+		if (player.ready) {
 			clearInterval(start)
 			StartGame()
 		}
 	}, 100)
-	setTimeout(() => can_start = true, 7300)
+	setTimeout(() => {
+		$(window).on('keydown', (e) => {
+			if (e.which == 80)
+				player.ready = true
+		})
+	}, 7300)
 })
 
 // ?------------- Game functions -------------- //
@@ -439,28 +462,31 @@ function StartGame() {
 		new Enemy().Place()
 		let spawn_interval = SPAWNER_INITIAL
 		let timer = SPAWNER_DECINTERVAL
-		let spawner = setInterval(() => {
-			if (document.hidden) return
-			new Enemy().Place()
-		}, SPAWNER_INITIAL)
+		spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
+		// * Spawn interval controller
 		setInterval(() => {
 			if (document.hidden) return
+			if (spawner == -1) return
+			if (game_over) return
 			timer -= 1000
 			if (timer <= 0){
 				clearInterval(spawner)
 				spawn_interval -= SPAWNER_DEC
 				timer = SPAWNER_DECINTERVAL
 				log('New spawn interval is '+spawn_interval)
-
-				spawner = setInterval(() => {
-					if (document.hidden) return
-					new Enemy().Place()
-				}, spawn_interval)
+				spawner = setInterval(() => SpawnEnemies(), spawn_interval)
 			}
 		}, 1000)
 	}, 3000)
 }
+function SpawnEnemies(number=1, template={hp:ENEMY_HP, atk:ENEMY_ATK}) {
+	if (document.hidden) return
+	if (spawner == -1) return
+	if (game_over) return
+	new Enemy().Place()
+}
 function GameLoop() {
+	if (game_over) return
 	if (!document.hasFocus())
 		Object.keys(player.movement).forEach(k => {
 			if (k != 'able')
@@ -468,17 +494,35 @@ function GameLoop() {
 		})
 	if (document.hidden) return
 	if (mages.length == 0) {
-		if (enemies.length > 0)
-			enemies.forEach(e => e.Die())
+		enemies.forEach((e) => e.Die())
 		setTimeout(() => {
 			$playarea.children().animate({opacity: 0}, {duration: 3000})
 		}, 500)
+		game_over = true
+		let a = 0
+		$({a}).animate({a: 1}, {
+			duration: 3000,
+			step: (now) => $overlay.css('background-color', `rgba(255, 0, 0, ${now})`)
+		})
+		return
 	}
+	player.movement.is = (
+		(
+			player.movement.left
+			|| player.movement.up
+			|| player.movement.right
+			|| player.movement.down
+		) || (
+			player.controlWithMouse
+			&& player.pos.x != mouse.pos.x
+			&& player.pos.y != mouse.pos.y
+		)
+	)
 	DoMovement()
 	DoBoundaryCheck()
 	DoAttack()
 	DoGraphing()
-	DoEnemyMovement()
+	DoEnemyActions()
 }
 function UpdateVariables() {
 	$player = $('#player')
@@ -486,22 +530,18 @@ function UpdateVariables() {
 	playarea = $playarea[0]
 	$graph = $('#graph')
 	$graphics = $('#graphics')
+	$overlay = $('#overlay')
 }
 function DoMovement() {
-	const MOVE = true
+	player.element.find('.body')
+		.css('--skew-v', 0)
+		.css('--skew-h', 0)
 	if (!player.movement.able) return
-	if (!MOVE) return
-	if (player.controlWithMouse) {
+	if (!player.movement.is && !mouse.holdR) return
+	if (mouse.holdR) {
 		Move(mouse.pos)
 		return
 	}
-
-	if (!(
-		player.movement.left ||
-		player.movement.right ||
-		player.movement.up ||
-		player.movement.down
-		)) return
 
 	let tw = {x:player.pos.x, y:player.pos.y}
 	tw.x += (player.movement.left) ?	-1 : 0
@@ -511,43 +551,26 @@ function DoMovement() {
 
 	Move(tw)
 
-	/*
-	if (player.movement.left)		Move('left')
-	else $player.removeClass('moving-left')
-	if (player.movement.right)		Move('right')
-	else $player.removeClass('moving-right')
-	if (player.movement.up)			Move('up')
-	else $player.removeClass('moving-up')
-	if (player.movement.down)		Move('down')
-	else $player.removeClass('moving-down')
-	if (player.movement.sprint)	$player.addClass('sprinting')
-	else $player.removeClass('sprinting')
-	*/
-
 	function Move(toward) {
 		let step = PLAYER_SPEED
-		step *= (player.movement.sprint) ? SPRINT_MULTIPLIER : 1
+		step *= (player.movement.sprint || mouse.holdR) ? SPRINT_MULTIPLIER : 1
 
 		let closest_node = FindClosest(100, nodes)
 		let distance_check = (closest_node === center) ? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
 
 		let new_pos = move_towards(player.pos, toward, step)
 		let stride = distance_between(player.pos, new_pos)
-		if (stride > distance_between(player.pos, mouse.pos)) {
-			$player
-				.css('--x', player.pos.x = mouse.pos.x)
-				.css('--y', player.pos.y = mouse.pos.y)
-				.css('--zind', round(mouse.pos.y)+50)
-			return
+		if (mouse.holdR) {
+			if (player.pos.x == mouse.pos.x && player.pos.y == mouse.pos.y)
+				return
+			if (stride > distance_between(player.pos, mouse.pos)) {
+				player.SetPos(mouse.pos.x, mouse.pos.y, true)
+				return
+			}
 		}
 		let new_closest_node = FindClosest(100, nodes, {pos:{x:new_pos.x, y:new_pos.y}})
-		if (new_closest_node?.depth <= MAX_DEPTH
-			&& distance_between(new_pos, new_closest_node.pos) <= distance_check + stride
-			)
-			$player
-				.css('--x', player.pos.x = new_pos.x)
-				.css('--y', player.pos.y = new_pos.y)
-				.css('--zind', round(new_pos.y)+50)
+		if (new_closest_node?.depth <= MAX_DEPTH && distance_between(new_pos, new_closest_node.pos) <= distance_check + stride)
+			player.SetPos(new_pos.x, new_pos.y, true)
 	}
 	/*
 	function Move(dir){
@@ -620,8 +643,9 @@ function DoBoundaryCheck() {
 	}
 }
 function DoAttack() {
-	if (player.isAttacking)
+	if (player.isAttacking || mouse.holdL)
 		Attack()
+
 	function Attack() {
 		if (player.movement.able == false) return
 		if (player.attackCooldown) return
@@ -646,7 +670,7 @@ function DoAttack() {
 	}
 }
 function DoGraphing() {
-	if (!(player.movement.left || player.movement.up || player.movement.right || player.movement.down) && !player.controlWithMouse)
+	if (!player.movement.is && !mouse.holdR)
 		return
 	let closest_node = FindClosest(100, nodes)
 	let distance_check = (closest_node === center) ? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
@@ -660,20 +684,33 @@ function DoGraphing() {
 		newnode.element.css('--depth', newnode.depth)
 	}
 }
-function DoEnemyMovement() {
-	enemies.forEach((e) => e.Move())
+function DoEnemyActions() {
+	enemies.forEach((e) => e.Act())
 }
 function FlashRangefinder($entity, range=PLAYER_INTER_RANGE) {
 	$entity.find('.rangefinder')
 		.css('--radius', range)
-		.addClass('active')
-		.css('opacity', 1)
-	let rot = random()*360
-	setTimeout(() => {
-		$entity.find('.rangefinder')
-			.css('opacity', 0)
-			.removeClass('active')
-	}, 70)
+		.animate({opacity:1}, {duration:0})
+		.animate({opacity:0}, {duration:150})
+	// $entity.find('.rangefinder')
+	// 	.css('--radius', range)
+	// 	.addClass('active')
+	// 	.css('opacity', 1)
+	// let rot = random()*360
+	// setTimeout(() => {
+	// 	$entity.find('.rangefinder')
+	// 		.css('opacity', 0)
+	// 		.removeClass('active')
+	// }, 70)
+}
+function FlashOverlay(color='rgb(255 0 0 / 20%)', rampup=0) {
+	$overlay
+		.css('transition-duration', `${rampup}ms`)
+		.css('background', color)
+	setTimeout(() => $overlay
+		.css('transition-duration', ``)
+		.css('background', '')
+	, Math.max(100, rampup))
 }
 function FindClosest(range=PLAYER_INTER_RANGE, list=entities, start=player) {
 	let min = Infinity
@@ -752,4 +789,6 @@ const move_towards = (starting_pos, target_pos, speed) => {
 	}
 	return ret
 }
+const angle_between = (pos1, pos2) =>
+	Math.atan2(pos1.y - pos2.y, pos1.x - pos2.x)
 // -------------------------------------------- //

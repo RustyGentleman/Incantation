@@ -210,6 +210,7 @@ section#intro
       // opacity: var(--opacity)
       transform: translate(-50%, -50%)
       transition: opacity 100ms ease
+      transition: none
       border-radius: 50%
       z-index: calc(var(--y) - 1)
       &.active
@@ -260,7 +261,6 @@ section#intro
    --color: rgb(0, 217, 255)
    .rangefinder
       // filter: hue-rotate(hue(cyan))
-      transition: opacity 100ms ease
 
 .enemy
    --color: rgb(150, 0, 0)
@@ -287,3 +287,10 @@ section#intro
       path
          stroke-width: 0
          stroke: red
+
+#overlay
+   mix-blend-mode: overlay
+   transition: background-color 300ms ease
+   &.gameover
+      transition: background-color 3000ms ease
+      background-color: red
