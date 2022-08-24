@@ -67,6 +67,210 @@ let $graphics
 let $graph
 let $overlay
 let center
+// ?--------------- Graph stuff --------------- //
+let nodes = []
+let lines = []
+// ?------------- Classes/Objects ------------- //
+class Node {
+	id
+	pos
+	element
+	neighbors = []
+	depth = 0
+
+	constructor(pos) {
+		this.id = NodeID++
+		this.pos = { x: pos.x, y: pos.y }
+		this.element = DrawNode(this.pos)
+		this.neighbors = []
+		this.depth = 0
+		nodes.push(this)
+	}
+
+	SetPos(pos) {
+		this.pos.x = pos.x
+		this.pos.y = pos.y
+		this.element
+			.css('--x', pos.x)
+			.css('--y', pos.y)
+	}
+}
+class Line {
+	ends
+	element
+	constructor(node1, node2) {
+		this.ends = {v:node1, w:node2}
+		this.element = DrawLine(node1.pos, node2.pos)
+			.css('--depth', Math.max(node1.depth, node2.depth))
+		node1.neighbors?.push(node2)
+		node2.neighbors?.push(node1)
+		lines.push(this)
+	}
+
+	get length() {
+		return distance_between(this.ends.v.pos, this.ends.w.pos)
+	}
+
+	Redraw(node1=this.ends.v, node2=this.ends.w) {
+		this.element.attr('d', `M ${node1.pos.x + 50} ${node1.pos.y + 50} L ${node2.pos.x + 50} ${node2.pos.y + 50} Z`)
+	}
+	Remove() {
+		this.element.remove()
+		lines = lines.filter((e) => e != this)
+	}
+}
+class Entity {
+	id
+	pos = {x:0, y:0}
+	maxHP
+	hp
+	element
+
+	constructor(hp = 100, clss = '') {
+		this.id = EntityID++
+		this.maxHP = hp
+		this.hp = hp
+		this.element = $(
+			`<div class="entity" data-id="${this.id}">
+			<div class="body">
+				<div class="hp">
+					<div class="hp-bar"></div>
+				</div>
+			</div>
+			<div class="shadow"></div>
+			<div class="rangefinder"></div>
+		</div>`
+		)
+		if (clss != '')
+			this.element.addClass(clss)
+		entities.push(this)
+	}
+
+	Remove() {
+		entities = entities.filter(function (e) { return e != this })
+		this.element.remove()
+	}
+	SetPos(x, y, skew = false) {
+		this.element
+			.css('--x', x)
+			.css('--y', y)
+			.css('--zind', round(y) + 50)
+		if (skew) {
+			let angle = angle_between(this.pos, { x, y })
+			let stride = distance_between(this.pos, { x, y })
+			this.element.find('.body')
+				.css('--skew-h', -cos(angle) * (stride / PLAYER_SPEED) * 1)
+				.css('--skew-v', -sin(angle) * (stride / PLAYER_SPEED) * 1)
+				.css('--angle', angle * (180 / PI))
+		}
+		this.pos.x = x
+		this.pos.y = y
+	}
+	GetAttacked(hit, skip_death=false) {
+		this.hp -= hit
+		this.element.css('--gothit', 1)
+		this.element.find('.hp-bar').css('--hp', round(this.hp / this.maxHP * 100) + '%')
+		this.element.toggleClass('hit')
+		setTimeout(() => this.element.toggleClass('hit'), 100)
+		if (skip_death)
+			return this.hp
+		if (this.hp <= 0)
+			this.Die()
+	}
+	Die() {
+		this.hp = -1
+		this.element.animate({ opacity: 0 }, {
+			duration: 500,
+			complete: () => this.Remove()
+		})
+	}
+	SetSkew(h, v) {
+		this.element.find('.body')
+			.css('--skew-h', h)
+			.css('--skew-v', v)
+	}
+}
+class Enemy extends Entity{
+	atk = ENEMY_ATK
+	atkRange = ENEMY_ATK_RANGE
+	atkCooldownTime = ENEMY_ATK_COOLDOWN
+	atkCooldown = false
+	speed = ENEMY_SPEED
+
+	constructor() {
+		super(ENEMY_HP, 'enemy')
+		enemies.push(this)
+		if (mages.length == 0)
+			this.Die()
+	}
+
+	get target() {
+		return FindClosest(1000000, mages, this)
+	}
+
+	Remove() {
+		enemies = enemies.filter((e) => e != this)
+		super.Remove()
+	}
+	Place() {
+		$('#enemies').append(this.element)
+		let p = place_at_distance({x:0, y:0}, 70)
+		this.SetPos(p.x, p.y)
+		return this
+	}
+	Act() {
+		this.SetSkew(0, 0)
+		if (this.hp <= 0)
+			return
+		let distance = distance_between(this.pos, this.target.pos)
+		let pos = move_towards(this.pos, this.target.pos, this.speed)
+		if (distance < this.atkRange)
+			this.Attack(this.target)
+		else
+			this.SetPos(pos.x, pos.y, true)
+	}
+	Attack() {
+		if (this.atkCooldown) return
+		if (this.hp <= 0) return
+		this.atkCooldown = true
+		this.target.GetAttacked(this.atk)
+		FlashRangefinder(this.element, this.atkRange)
+		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
+	}
+}
+class Mage extends Entity{
+	constructor() {
+		super(MAGE_HP, 'mage')
+		mages.push(this)
+	}
+
+	Remove() {
+		mages = mages.filter((e) => e != this)
+		super.Remove()
+	}
+	GetAttacked(hit) {
+		super.GetAttacked(hit, true)
+		FlashOverlay('rgb(255 0 0 / 30%)')
+		if (this.hp <= 0)
+			this.Die()
+	}
+	Die() {
+		this.element.animate({ opacity: 0 }, {
+			duration: 500,
+			complete: function () {this.remove()}
+		})
+		let magelines = $('#circle-lines').children().toArray().filter(p => $(p).attr('data-mage-ids').includes(`${this.id}`))
+		let lw = 2
+		$({ lw }).animate({ lw: 0 }, {
+			duration: 1000,
+			start: () => $(magelines).css('animation', 'none'),
+			step: (now) => $(magelines).css('stroke-width', `max(${now}px, ${now / 10}vmin)`),
+			complete: () => $(magelines).remove()
+		})
+		FlashOverlay('rgb(255 0 0 / 100%)')
+		setTimeout(() => this.Remove(), 500)
+	}
+}
 // ?------------ Runtime variables ------------ //
 let mouse = {
 	pos: {x:0, y:0},
@@ -88,218 +292,6 @@ player.isAttacking = false
 player.attackCooldown = false
 player.movement = {able:true, is:false, left:false, up:false, right:false, down:false, sprint:false}
 player.ready = false
-// ?--------------- Graph stuff --------------- //
-let nodes = []
-let lines = []
-// ?------------- Classes/Objects ------------- //
-function Node(pos) {
-	this.id = NodeID++
-	this.pos = {x: pos.x, y: pos.y}
-	this.element = DrawNode(this.pos)
-	this.neighbors = []
-	this.depth = 0
-	
-	nodes.push(this)
-
-	this.SetPos = (pos) => {
-		this.pos.x = pos.x
-		this.pos.y = pos.y
-		this.element
-			.css('--x', pos.x)
-			.css('--y', pos.y)
-	}
-}
-function Line(node1, node2) {
-	this.ends = {v: node1, w: node2}
-	this.element = DrawLine(node1.pos, node2.pos)
-		.css('--depth', Math.max(node1.depth, node2.depth))
-	log(Math.max(node1.depth, node2.depth))
-
-	node1.neighbors?.push(node2)
-	node2.neighbors?.push(node1)
-
-	lines.push(this)
-
-	this.Distance = () =>
-		distance_between(this.ends.v.pos, this.ends.w.pos)
-	this.Redraw = (node1=this.ends.v, node2=this.ends.w) => {
-		let match = this.element.attr('d').match(/(-?\d+.?\d+)/g)
-		this.element.attr('d',
-			`M ${node1.pos.x+50} ${node1.pos.y+50} L ${node2.pos.x+50} ${node2.pos.y+50} Z`
-		)
-		// UpdateGraph()
-	}
-	this.Remove = () => {
-		this.element.remove()
-		lines = lines.filter((e) => e != this)
-	}
-}
-function Entity(hp=100, clss='') {
-	this.id = EntityID++
-	this.pos = {x: 0, y: 0}
-	this.maxHP = hp
-	this.hp = hp
-	this.element = $(
-		`<div class="entity" data-id="${this.id}">
-			<div class="body">
-				<div class="hp">
-					<div class="hp-bar"></div>
-				</div>
-			</div>
-			<div class="shadow"></div>
-			<div class="rangefinder"></div>
-		</div>`
-	)
-
-	if (clss != '')
-		this.element.addClass(clss)
-
-	entities.push(this)
-
-	this.Remove = () => {
-		entities = entities.filter(function(e){return e != this})
-		this.element.remove()
-		return this
-	}
-	this.SetPos = (x, y, skew=false) => {
-		this.element
-			.css('--x', x)
-			.css('--y', y)
-			.css('--zind', round(y)+50)
-		if (skew) {
-			let angle = angle_between(this.pos, {x, y})
-			let stride = distance_between(this.pos, {x, y}) 
-			this.element.find('.body')
-				.css('--skew-h', -cos(angle) * (stride / PLAYER_SPEED) * 1)
-				.css('--skew-v', -sin(angle) * (stride / PLAYER_SPEED) * 1)
-				.css('--angle', angle * (180 / PI))
-		}
-		this.pos.x = x
-		this.pos.y = y
-		return this
-	}
-	this.GetAttacked = (hit) => {
-		this.hp -= hit
-		this.element.css('--gothit', 1)
-		this.element.find('.hp-bar').css('--hp', round(this.hp/this.maxHP*100)+'%')
-		this.element.toggleClass('hit')
-		setTimeout(() => this.element.toggleClass('hit'), 100)
-		return this.hp
-	}
-}
-function Enemy(hp=ENEMY_HP, atk=ENEMY_ATK) {
-	this.entity = new Entity(hp, 'enemy')
-	this.id = this.entity.id
-	this.pos = this.entity.pos
-	this.element = this.entity.element
-	this.maxHP = this.entity.maxHP
-	this.hp = this.entity.hp
-	this.atk = atk
-	this.atkRange = ENEMY_ATK_RANGE
-	this.atkCooldownTime = ENEMY_ATK_COOLDOWN
-	this.attackCooldown = false
-	this.speed = ENEMY_SPEED
-	this.target
-
-	enemies.push(this)
-	if (mages.length == 0)
-		this.Die()
-
-	this.Remove = () => {
-		enemies = enemies.filter((e) => e != this)
-		this.entity.Remove()
-		this.element.remove()
-		return this
-	}
-	this.SetPos = (x, y, skew=false) => {
-		this.entity.SetPos(x, y, skew)
-		return this
-	}
-	this.Place = () => {
-		if (!spawn_enemies) {
-			this.Die()
-			return
-		}
-		$('#enemies').append(this.element)
-		let p = place_at_distance({x: 0, y: 0}, 70)
-		this.SetPos(p.x, p.y)
-		return this
-	}
-	this.Act = () => {
-		this.element.find('.body')
-			.css('--skew-h', 0)
-			.css('--skew-v', 0)
-		if (this.hp <= 0) return
-		this.target = FindClosest(1000000, mages, this)
-		let distance = distance_between(this.pos, this.target.pos)
-		if (distance < this.atkRange) {
-			this.Attack(this.target)
-			return
-		}
-		let pos = move_towards(this.pos, this.target.pos, this.speed)
-		this.SetPos(pos.x, pos.y, true)
-	}
-	this.GetAttacked = (hit) => {
-		this.hp = this.entity.GetAttacked(hit)
-		if (this.hp <= 0)
-			this.Die()
-	}
-	this.Attack = (target) => {
-		if (!this.attackCooldown && this.hp > 0) {
-			target.GetAttacked(this.atk)
-			FlashRangefinder(this.element, this.atkRange)
-			this.attackCooldown = true
-			setTimeout(() => this.attackCooldown = false, this.atkCooldownTime)
-		}
-	}
-	this.Die = () => {
-		this.hp = -1
-		this.element.animate({opacity: 0}, 500, complete=() => this.Remove())
-		return this
-	}
-}
-function Mage() {
-	this.entity = new Entity(MAGE_HP, 'mage')
-	this.id = this.entity.id
-	this.pos = this.entity.pos
-	this.element = this.entity.element
-	this.maxHP = this.entity.maxHP
-	this.hp = this.entity.hp
-
-	mages.push(this)
-
-	this.Remove = () => {
-		mages = mages.filter((e) => e != this)
-		this.entity.Remove()
-		return this
-	}
-	this.SetPos = (x, y) => {
-		this.entity.SetPos(x, y)
-		return this
-	}
-	this.GetAttacked = (hit) => {
-		this.hp = this.entity.GetAttacked(hit)
-		FlashOverlay('rgb(255 0 0 / 30%)')
-		if (this.hp <= 0)
-			this.Die()
-	}
-	this.Die = () => {
-		this.element.animate({opacity: 0}, 500, complete=function(){this.remove()})
-		let magelines = $('#circle-lines').children().toArray().filter(
-			p => {return $(p).attr('data-mage-ids').includes(`${this.id}`)}
-		)
-		let lw = 2
-		$({lw}).animate({lw: 0}, {
-			duration: 1000,
-			start: () => $(magelines).css('animation', 'none'),
-			step: (now) => $(magelines).css('stroke-width', `max(${now}px, ${now/10}vmin)`),
-			complete: () => $(magelines).remove()
-		})
-		FlashOverlay('rgb(255 0 0 / 100%)')
-		this.Remove()
-		return this
-	}
-}
 // -------------------------------------------- //
 // ?------------- The Juicy Stuff ------------- //
 // -------------------------------------------- //
