@@ -158,10 +158,7 @@ class Entity {
 		if (skew) {
 			let angle = angle_between(this.pos, { x, y })
 			let stride = distance_between(this.pos, { x, y })
-			this.element.find('.body')
-				.css('--skew-h', -cos(angle) * (stride / PLAYER_SPEED) * 1)
-				.css('--skew-v', -sin(angle) * (stride / PLAYER_SPEED) * 1)
-				.css('--angle', angle * (180 / PI))
+			this.SetSkew(-cos(angle) * (stride / PLAYER_SPEED), -sin(angle) * (stride / PLAYER_SPEED), angle * (180 / PI))
 		}
 		this.pos.x = x
 		this.pos.y = y
@@ -184,10 +181,11 @@ class Entity {
 			complete: () => this.Remove()
 		})
 	}
-	SetSkew(h, v) {
+	SetSkew(h, v, angle) {
 		this.element.find('.body')
 			.css('--skew-h', h)
 			.css('--skew-v', v)
+			.css('--angle', angle)
 	}
 }
 class Enemy extends Entity{
@@ -219,7 +217,7 @@ class Enemy extends Entity{
 		return this
 	}
 	Act() {
-		this.SetSkew(0, 0)
+		this.SetSkew(0, 0, 0)
 		if (this.hp <= 0)
 			return
 		let distance = distance_between(this.pos, this.target.pos)
@@ -380,8 +378,8 @@ $(function(){
 	for (let i=0; i<MAGES; i++){
 		let mage = new Mage()
 		mage.SetPos(
-			(INCANTATION_CIRCLE_SIZE - 0.8) * sin(((i * 360 / MAGES) + 180) * (PI / 180)),
-			(INCANTATION_CIRCLE_SIZE - 0.8) * cos(((i * 360 / MAGES) + 180) * (PI / 180)),
+			(INCANTATION_CIRCLE_SIZE - 0.8) * sin(((-i * 360 / MAGES) + 180) * (PI / 180)),
+			(INCANTATION_CIRCLE_SIZE - 0.8) * cos(((-i * 360 / MAGES) + 180) * (PI / 180)),
 		)
 		$('#mages').append(mage.element)
 	}
@@ -451,14 +449,13 @@ function StartGame() {
 	setInterval(GameLoop, 32)
 	setTimeout(() => {
 		// * Enemy spawn interval
-		new Enemy().Place()
 		let spawn_interval = SPAWNER_INITIAL
 		let timer = SPAWNER_DECINTERVAL
 		spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
 		// * Spawn interval controller
 		setInterval(() => {
 			if (document.hidden) return
-			if (spawner == -1) return
+			if (!spawn_enemies) return
 			if (game_over) return
 			timer -= 1000
 			if (timer <= 0){
@@ -473,7 +470,7 @@ function StartGame() {
 }
 function SpawnEnemies(number=1, template={hp:ENEMY_HP, atk:ENEMY_ATK}) {
 	if (document.hidden) return
-	if (spawner == -1) return
+	if (!spawn_enemies) return
 	if (game_over) return
 	new Enemy().Place()
 }
