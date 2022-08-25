@@ -182,6 +182,7 @@ section#intro
       box-shadow: 0 0 10px 0 black
       --skew-h: 0
       --skew-v: 0
+      --angle: 0
       --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0
       --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1
       // --matrix: 1, 0, 0.05, 1, -1, 0
@@ -231,34 +232,15 @@ section#intro
          width: var(--hp)
          height: 100%
          background-color: var(--color)
-   &.hit
-      .body
-         --scale: 1.1
-         filter: brightness(1.5)
-         transition: transform 30ms ease, filter 30ms ease
-   &.moving-left:not(.moving-right)
-      .body
-         --matrix: 1, 0, -0.05, 1, 1, 0
-      &.sprinting .body
-         --matrix: 1, 0, -0.1, 1, 2, 0
-   &.moving-right:not(.moving-left)
-      .body
-         --matrix: 1, 0, 0.05, 1, -1, 0
-      &.sprinting .body
-         --matrix: 1, 0, 0.1, 1, -2, 0
-   &.moving-up:not(.moving-down)
-      .body
-         --matrixtd: 1, 0, 0, 0, 0, 0.95, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1
-      &.sprinting .body
-         --matrixtd: 1, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1
-   &.moving-down:not(.moving-up)
-      .body
-         --matrixtd: 1, 0, 0, 0, 0, 1.05, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1
-      &.sprinting .body
-         --matrixtd: 1, 0, 0, 0, 0, 1.1, 0, 0,  0, 0, 1, 0, 0, -2, 0, 1
+   &.hit .body
+      --scale: 1.1
+      filter: brightness(1.5)
+      transition: transform 30ms ease, filter 30ms ease
 
 #player
    --color: rgb(0, 217, 255)
+   .body
+      background-image: radial-gradient(ellipse 20% 8% at calc(25%) 35%, black 80%, transparent 100%), radial-gradient(ellipse 20% 8% at calc(75%) 35%, black 80%, transparent 100%)
    .rangefinder
       // filter: hue-rotate(hue(cyan))
 
@@ -266,18 +248,61 @@ section#intro
    --color: rgb(150, 0, 0)
    .body
       border-radius: 100% 100% 0 0
+
 .mage
    --color: rgb(0, 100, 255)
    .body
-      height: 2.5rem
-      width: 0.8rem
+      background-size: contain
+      background-color: transparent
+      background-repeat: no-repeat
+      background-position: center center
+      box-shadow: none
+      height: 3.2rem
+      width: 2rem
       border-radius: 0 0 100% 100%
+   &:nth-of-type(1)
+      --color: #d90300
+      .body
+         background-image: url('assets/mage-1.png')
+   &:nth-of-type(2)
+      --color: #fe01ef
+      .body
+         background-image: url('assets/mage-2.png')
+   &:nth-of-type(3)
+      --color: #00e204
+      .body
+         background-image: url('assets/mage-3.png')
+   &:nth-of-type(4)
+      --color: #e2e505
+      .body
+         background-image: url('assets/mage-4.png')
+   &:nth-of-type(5)
+      --color: #9a9a9a
+      .body
+         background-image: url('assets/mage-5.png')
+   &:nth-of-type(6)
+      --color: #8b0b49
+      .body
+         background-image: url('assets/mage-6.png')
+   &:nth-of-type(7)
+      --color: #02dae7
+      .body
+         background-image: url('assets/mage-7.png')
+   &:nth-of-type(8)
+      --color: #e16a00
+      .body
+         background-image: url('assets/mage-8.png')
+   &:nth-of-type(9)
+      --color: #0132E1
+      .body
+         background-image: url('assets/mage-9.png')
 
 #nonagon-infinity
    .body
       border: double $g-strokes red
       border: none
       background: none
+
 #incantation-circle
    position: absolute
    width: 100%
