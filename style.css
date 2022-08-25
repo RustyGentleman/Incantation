@@ -344,58 +344,58 @@ section#intro #subtitle {
 .mage .shadow {
   top: -0.6rem;
 }
-.mage:nth-of-type(1) {
+.mage[data-id="1"] {
   --color: #d90300;
 }
-.mage:nth-of-type(1) .body {
+.mage[data-id="1"] .body {
   background-image: url("assets/mage-1.png");
 }
-.mage:nth-of-type(2) {
+.mage[data-id="2"] {
   --color: #fe01ef;
 }
-.mage:nth-of-type(2) .body {
+.mage[data-id="2"] .body {
   background-image: url("assets/mage-2.png");
 }
-.mage:nth-of-type(3) {
+.mage[data-id="3"] {
   --color: #00e204;
 }
-.mage:nth-of-type(3) .body {
+.mage[data-id="3"] .body {
   background-image: url("assets/mage-3.png");
 }
-.mage:nth-of-type(4) {
+.mage[data-id="4"] {
   --color: #e2e505;
 }
-.mage:nth-of-type(4) .body {
+.mage[data-id="4"] .body {
   background-image: url("assets/mage-4.png");
 }
-.mage:nth-of-type(5) {
+.mage[data-id="5"] {
   --color: #9a9a9a;
 }
-.mage:nth-of-type(5) .body {
+.mage[data-id="5"] .body {
   background-image: url("assets/mage-5.png");
 }
-.mage:nth-of-type(6) {
+.mage[data-id="6"] {
   --color: #8b0b49;
 }
-.mage:nth-of-type(6) .body {
+.mage[data-id="6"] .body {
   background-image: url("assets/mage-6.png");
 }
-.mage:nth-of-type(7) {
+.mage[data-id="7"] {
   --color: #02dae7;
 }
-.mage:nth-of-type(7) .body {
+.mage[data-id="7"] .body {
   background-image: url("assets/mage-7.png");
 }
-.mage:nth-of-type(8) {
+.mage[data-id="8"] {
   --color: #e16a00;
 }
-.mage:nth-of-type(8) .body {
+.mage[data-id="8"] .body {
   background-image: url("assets/mage-8.png");
 }
-.mage:nth-of-type(9) {
+.mage[data-id="9"] {
   --color: #0132E1;
 }
-.mage:nth-of-type(9) .body {
+.mage[data-id="9"] .body {
   background-image: url("assets/mage-9.png");
 }
 
