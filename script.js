@@ -83,14 +83,14 @@ class Node {
 	pos
 	element
 	neighbors = []
-	depth = 0
+	depth
 
-	constructor(pos) {
+	constructor(pos, depth=0) {
 		this.id = NodeID++
 		this.pos = { x: pos.x, y: pos.y }
-		this.element = DrawNode(this.pos)
+		this.element = DrawNode(this.pos).css('--depth', depth)
 		this.neighbors = []
-		this.depth = 0
+		this.depth = depth
 		nodes.push(this)
 	}
 
@@ -137,17 +137,7 @@ class Entity {
 		this.id = EntityID++
 		this.maxHP = hp
 		this.hp = hp
-		this.element = $(
-			`<div class="entity" data-id="${this.id}">
-			<div class="body">
-				<div class="hp">
-					<div class="hp-bar"></div>
-				</div>
-			</div>
-			<div class="shadow"></div>
-			<div class="rangefinder"></div>
-		</div>`
-		)
+		this.element = $(`<div class="entity" data-id="${this.id}"><div class="body"><div class="hp"><div class="hp-bar"></div></div></div><div class="shadow"></div><div class="rangefinder"></div></div>`)
 		if (clss != '')
 			this.element.addClass(clss)
 		entities.push(this)
@@ -155,7 +145,7 @@ class Entity {
 
 	Remove() {
 		entities = entities.filter(function (e) { return e != this })
-		this.element.remove()
+		this.element[0].remove()
 	}
 	SetPos(x, y, skew = false) {
 		this.element
@@ -174,8 +164,11 @@ class Entity {
 		this.hp -= hit
 		this.element.css('--gothit', 1)
 		this.element.find('.hp-bar').css('--hp', round(this.hp / this.maxHP * 100) + '%')
+		// this.element[0].firstElementChild.firstElementChild.firstElementChild.style.setProperty('--hp', round(this.hp / this.maxHP * 100) + '%')
 		this.element.toggleClass('hit')
 		setTimeout(() => this.element.toggleClass('hit'), 100)
+		// this.element[0].classList.add('hit')
+		// setTimeout(() => this.element[0].classList.remove('hit'), 100)
 		if (skip_death)
 			return this.hp
 		if (this.hp <= 0)
@@ -202,6 +195,8 @@ class Enemy extends Entity{
 	atkCooldownTime = ENEMY_ATK_COOLDOWN
 	atkCooldown = false
 	speed = ENEMY_SPEED
+	timeOfLastAction
+	target
 
 	constructor() {
 		super(ENEMY_HP, 'enemy')
@@ -210,10 +205,9 @@ class Enemy extends Entity{
 			this.Die()
 	}
 
-	get target() {
-		return FindClosest(1000000, mages, this)
+	FindTarget() {
+		this.target = FindClosest(1000000, mages, this)
 	}
-
 	Remove() {
 		enemies = enemies.filter((e) => e != this)
 		super.Remove()
@@ -222,25 +216,34 @@ class Enemy extends Entity{
 		$('#enemies').append(this.element)
 		let p = place_at_distance({x:0, y:0}, 70)
 		this.SetPos(p.x, p.y)
+		this.FindTarget()
 		return this
 	}
 	Act() {
-		this.SetSkew(0, 0, 0)
-		if (this.hp <= 0)
+		if ((t_game_s*1000+t_game_ms*10) - this.timeOfLastAction < 300)
 			return
+		if (this.hp <= 0) {
+			this.SetSkew(0, 0, 0)
+			return
+		}
+		if (this.target.hp <= 0)
+			this.FindTarget()
 		let distance = distance_between(this.pos, this.target.pos)
 		let pos = move_towards(this.pos, this.target.pos, this.speed)
-		if (distance < this.atkRange)
+		if (distance < this.atkRange) {
+			this.SetSkew(0, 0, 0)
 			this.Attack(this.target)
+		}
 		else
 			this.SetPos(pos.x, pos.y, true)
+		this.timeOfLastAction = t_game_s*1000+t_game_ms*10
 	}
 	Attack() {
 		if (this.atkCooldown) return
 		if (this.hp <= 0) return
 		this.atkCooldown = true
 		this.target.GetAttacked(this.atk)
-		FlashRangefinder(this.element, this.atkRange)
+		// FlashRangefinder(this.element, this.atkRange)
 		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
 	}
 }
@@ -304,6 +307,7 @@ player.isAttacking = false
 player.attackCooldown = false
 player.movement = {able:true, is:false, left:false, up:false, right:false, down:false, sprint:false}
 player.ready = false
+player.connectedNode = null
 // -------------------------------------------- //
 // ?------------- The Juicy Stuff ------------- //
 // -------------------------------------------- //
@@ -359,6 +363,10 @@ $(function(){
 			case 67:
 				($controls.css('opacity') >= 0.5) ?
 					$controls.stop().animate({opacity: 0}, 500) : $controls.stop().animate({opacity: 1}, 500)
+				break
+			case 84:
+				player.SetPos(mouse.pos.x, mouse.pos.y)
+				break
 		}
 	})
 	$(window).on('keyup', (e) => {
@@ -394,6 +402,7 @@ $(function(){
 		.css('--r', INCANTATION_CIRCLE_SIZE)
 		.css('--zind', -2)
 		[0].id = 'nonagon-infinity'
+	player.connectedNode = center
 	
 	// * Create and place mages
 	for (let i=0; i<MAGES; i++){
@@ -500,6 +509,12 @@ function StartGame() {
 
 	// * Start timer
 	t_game_start = Date.now()
+	setInterval(() => {
+		if (document.hidden) return
+		if (game_over) return
+		let time = Date.now() - t_game_start
+		$timer.text(`${String(t_game_m=parseInt(time/60000)).padStart(2, '0')}:${String(t_game_s=parseInt(time/1000%60)).padStart(2, '0')}`)
+	},1000)
 
 	// * Start enemy spawner
 
@@ -555,8 +570,6 @@ function GameLoop() {
 		})
 		return
 	}
-	let time = Date.now() - t_game_start
-	$timer.text(`${String(t_game_m=parseInt(time/60000)).padStart(2, '0')}:${String(t_game_s=parseInt(time/1000%60)).padStart(2, '0')}:${String(t_game_ms=parseInt(time%1000)).padStart(3, '0')}`)
 
 	player.movement.is = (
 		(
@@ -723,19 +736,46 @@ function DoAttack() {
 		setTimeout(() => player.attackCooldown = false, PLAYER_ATK_COOLDOWN)
 	}
 }
+// function DoGraphing() {
+// 	if (!player.movement.is && !mouse.holdR)
+// 		return
+// 	let closest_node = FindClosest(100, nodes)
+// 	let distance_check = (closest_node === center) ? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
+// 	let distance = distance_between(player.pos, closest_node.pos)
+// 	if (distance > distance_check) {
+// 		if (closest_node.depth >= MAX_DEPTH)
+// 			return
+// 		let newnode = new Node(player.pos)
+// 		new Line(closest_node, newnode)
+// 		newnode.depth = closest_node.depth+1
+// 		newnode.element.css('--depth', newnode.depth)
+// 	}
+// }
 function DoGraphing() {
-	if (!player.movement.is && !mouse.holdR)
-		return
 	let closest_node = FindClosest(100, nodes)
 	let distance_check = (closest_node === center) ? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
-	let distance = distance_between(player.pos, closest_node.pos)
-	if (distance > distance_check) {
-		if (closest_node.depth >= MAX_DEPTH)
-			return
-		let newnode = new Node(player.pos)
-		new Line(closest_node, newnode)
-		newnode.depth = closest_node.depth+1
-		newnode.element.css('--depth', newnode.depth)
+	if (distance_between(player.pos, player.connectedNode.pos) > distance_check) {
+		if (closest_node != player.connectedNode) {
+			if (player.connectedNode.neighbors.includes(closest_node) && distance_between(player.pos, closest_node.pos) <= distance_check) {
+					player.connectedNode = closest_node
+					return
+			}
+			else {
+				new Line(player.connectedNode, closest_node)
+				player.connectedNode = closest_node
+				// GameFail()
+				return
+			}
+		}
+		else {
+			if (player.connectedNode.depth >= MAX_DEPTH)
+				return
+			let newnode = new Node(player.pos, player.connectedNode.depth+1)
+			new Line(player.connectedNode, newnode)
+			newnode.depth = player.connectedNode.depth+1
+			newnode.element.css('--depth', newnode.depth)
+			player.connectedNode = newnode
+		}
 	}
 }
 function DoEnemyActions() {
