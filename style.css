@@ -43,6 +43,22 @@
     opacity: 1;
   }
 }
+@-webkit-keyframes hide {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes hide {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 @-webkit-keyframes reveal-hide {
   0% {
     opacity: 0;
@@ -110,7 +126,7 @@
     stroke-width: 0.2vmin;
   }
   50% {
-    stroke-width: 0.26vmin;
+    stroke-width: 0.4vmin;
   }
   100% {
     stroke-width: 0.2vmin;
@@ -121,10 +137,42 @@
     stroke-width: 0.2vmin;
   }
   50% {
-    stroke-width: 0.26vmin;
+    stroke-width: 0.4vmin;
   }
   100% {
     stroke-width: 0.2vmin;
+  }
+}
+@-webkit-keyframes nonagon-flash {
+  0% {
+    box-shadow: 0 0 0rem 0rem red;
+  }
+  100% {
+    box-shadow: 0 0 15rem 1rem red;
+  }
+}
+@keyframes nonagon-flash {
+  0% {
+    box-shadow: 0 0 0rem 0rem red;
+  }
+  100% {
+    box-shadow: 0 0 15rem 1rem red;
+  }
+}
+@-webkit-keyframes nonagon-pulse {
+  0% {
+    box-shadow: 0 0 4rem 1rem red;
+  }
+  100% {
+    box-shadow: 0 0 15rem 1rem red;
+  }
+}
+@keyframes nonagon-pulse {
+  0% {
+    box-shadow: 0 0 4rem 1rem red;
+  }
+  100% {
+    box-shadow: 0 0 15rem 1rem red;
   }
 }
 * {
@@ -143,7 +191,7 @@ body {
   align-items: center;
   align-content: center;
   justify-content: center;
-  background: rgb(0, 0, 0);
+  background-color: rgb(0, 0, 0);
   font-family: "DePixel Klein";
   color: white;
   text-rendering: geometricPrecision;
@@ -155,6 +203,7 @@ section {
   width: 100vmin;
   height: 100vmin;
   overflow: hidden;
+  cursor: cell;
 }
 
 #graph {
@@ -192,17 +241,6 @@ section#playarea {
   background: rgb(10, 10, 10);
   z-index: -1000;
 }
-section#playarea #readyup {
-  font-family: "DePixel Illegible";
-  text-align: center;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translateX(-50%) translateY(6rem);
-  opacity: 0;
-  -webkit-animation: blink 1s infinite 7.3s;
-          animation: blink 1s infinite 7.3s;
-}
 
 section#intro {
   z-index: 1000;
@@ -210,24 +248,214 @@ section#intro {
   place-content: center;
   place-items: center;
   text-align: center;
-  text-shadow: 0 0 1rem black, 0 0 1rem black, 0 0 1rem black, 0 0 1rem black;
+  flex-direction: column;
+  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10));
 }
 section#intro > div {
-  transform: translateY(-10rem);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+section#intro > div:nth-of-type(1) {
+  transform: translate(-50%, -50%) translateY(-10rem);
 }
 section#intro #title {
   font-family: "DePixel Halbfett";
   font-size: 3rem;
   opacity: 0;
-  -webkit-animation: reveal-hide 6s linear 1s 1 forwards;
-          animation: reveal-hide 6s linear 1s 1 forwards;
+  -webkit-animation: reveal 1.5s linear 1s forwards, hide 1.5s linear 7s forwards;
+          animation: reveal 1.5s linear 1s forwards, hide 1.5s linear 7s forwards;
 }
 section#intro #subtitle {
   font-family: "DePixel Klein";
   font-size: 2rem;
   opacity: 0;
-  -webkit-animation: reveal-hide 5s linear 2s 1 forwards;
-          animation: reveal-hide 5s linear 2s 1 forwards;
+  -webkit-animation: reveal 1.5s linear 2.5s forwards, hide 1.5s linear 7s forwards;
+          animation: reveal 1.5s linear 2.5s forwards, hide 1.5s linear 7s forwards;
+}
+section#intro #premise {
+  width: 100%;
+}
+section#intro #premise .premise {
+  opacity: 0;
+  --delay-reveal: 1s;
+  --delay-hide: 5s;
+  -webkit-animation: reveal 1.5s linear var(--delay-reveal) forwards;
+          animation: reveal 1.5s linear var(--delay-reveal) forwards;
+}
+section#intro #premise #p1 {
+  --delay-reveal: 8s;
+}
+section#intro #premise #p2 {
+  --delay-reveal: 10s;
+}
+section#intro #premise #p3 {
+  --delay-reveal: 12s;
+}
+section#intro #premise #p4 {
+  --delay-reveal: 14s;
+}
+section#intro #premise #p5 {
+  --delay-reveal: 16s;
+}
+section#intro #premise #p6 {
+  --delay-reveal: 18s;
+}
+section#intro #premise #p7 {
+  --delay-reveal: 20s;
+}
+
+section#UI {
+  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10));
+}
+section#UI > div {
+  display: flex;
+  place-content: center;
+  align-items: center;
+}
+section#UI #timer {
+  font-size: 3rem;
+  margin-top: 2rem;
+  text-align: center;
+}
+section#UI #messages {
+  font-size: 1.5rem;
+  text-align: center;
+}
+section#UI #readyup {
+  font-family: "DePixel Illegible";
+  text-align: center;
+  position: absolute;
+  bottom: 0%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4rem;
+  opacity: 0;
+  -webkit-animation: blink 1s infinite 7.3s;
+          animation: blink 1s infinite 7.3s;
+}
+
+section#controls {
+  display: flex;
+  place-content: center;
+  place-items: center;
+  justify-content: space-between;
+  padding: 2rem;
+  opacity: 0;
+  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10));
+}
+section#controls > div {
+  text-align: center;
+}
+section#controls * {
+  vertical-align: middle;
+}
+section#controls .key {
+  display: inline-block;
+  position: relative;
+  width: 0.7rem;
+  margin: 0 0.2rem;
+  text-align: center;
+  font-family: "DePixel Klein";
+  font-size: 0.7rem;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+section#controls .key::before {
+  content: "";
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-image: url("assets/keycap_unpressed.png");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+section#controls .key#space {
+  box-sizing: content-box;
+  display: inline-flex;
+  place-items: center;
+  place-content: center;
+  width: auto;
+  height: 0.1rem;
+  border: solid 0.7470651014rem transparent;
+  -o-border-image: url(assets/keycap_unpressed.png) 49%;
+     border-image: url(assets/keycap_unpressed.png) 49%;
+}
+section#controls .key#space > span {
+  transform: translateY(-15%);
+}
+section#controls .key#space::before {
+  display: none;
+}
+section#controls .key#up {
+  height: 0.7rem;
+  background-image: url("assets/arrow-up.png");
+}
+section#controls .key#left {
+  height: 0.7rem;
+  background-image: url("assets/arrow-left.png");
+}
+section#controls .key#down {
+  height: 0.7rem;
+  background-image: url("assets/arrow-down.png");
+}
+section#controls .key#right {
+  height: 0.7rem;
+  background-image: url("assets/arrow-right.png");
+}
+section#controls .keygroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  place-content: center;
+}
+section#controls .keygroup#wasd, section#controls .keygroup#arrows {
+  width: 4.5rem;
+  height: 3rem;
+}
+section#controls .keygroup#wasd > div, section#controls .keygroup#arrows > div {
+  height: 1.5rem;
+}
+section#controls .keygroup#wasd > div:first-child, section#controls .keygroup#arrows > div:first-child {
+  width: auto;
+}
+section#controls .mouse {
+  display: inline-block;
+  position: relative;
+  height: 1rem;
+  width: 1rem;
+}
+section#controls .mouse::before {
+  content: "";
+  height: 1.5rem;
+  width: 1.5rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+section#controls .mouse.right::before {
+  background-image: url("assets/mouseR.png");
+}
+section#controls .mouse.left::before {
+  background-image: url("assets/mouseL.png");
+}
+
+section#overlay {
+  z-index: 10000;
+  mix-blend-mode: overlay;
+  background-image: url(assets/dither.png);
+  background-blend-mode: soft-light;
+  transition: background-color 300ms ease;
 }
 
 .entity {
@@ -314,6 +542,10 @@ section#intro #subtitle {
   transition: transform 30ms ease, filter 30ms ease;
 }
 
+.dead .hp {
+  opacity: 0;
+}
+
 #player {
   --color: rgb(0, 217, 255);
 }
@@ -328,6 +560,7 @@ section#intro #subtitle {
   --color: rgb(0, 100, 255);
 }
 .mage .body {
+  --rise: 0;
   background-size: contain;
   background-color: transparent;
   background-repeat: no-repeat;
@@ -337,9 +570,10 @@ section#intro #subtitle {
   width: 2rem;
   border-radius: 0 0 100% 100%;
   filter: drop-shadow(0 0.3vmin 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0.3vmin 0.3vmin rgb(10, 10, 10));
+  transform: translateY(calc(-50% + 0.2rem - var(--rise) * 1rem)) matrix(var(--matrix)) scale(var(--scale));
 }
 .mage .shadow {
-  top: -0.6rem;
+  top: -0.5rem;
 }
 .mage[data-id="1"] {
   --color: #d90300;
@@ -397,9 +631,7 @@ section#intro #subtitle {
 }
 
 #nonagon-infinity .body {
-  border: double 0.2vmin red;
-  border: none;
-  background: none;
+  animation: nonagon-flash 5s linear 12s 1 forwards, nonagon-pulse 2s linear 17s infinite alternate-reverse;
 }
 
 #incantation-circle {
@@ -410,14 +642,5 @@ section#intro #subtitle {
 #incantation-circle #circle-lines path {
   stroke-width: 0;
   stroke: red;
-}
-
-#overlay {
-  mix-blend-mode: overlay;
-  transition: background-color 300ms ease;
-}
-#overlay.gameover {
-  transition: background-color 3000ms ease;
-  background-color: red;
 }
 /*# sourceMappingURL=style.css.map */

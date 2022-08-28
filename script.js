@@ -51,14 +51,18 @@ const MAGE_HP = 10
 const INCANTATION_CIRCLE_SIZE = 8
 const LINE_BREAK_THRESHOLD = 3
 const MAX_DEPTH = 15
-const SPAWNER_DECINTERVAL = 10000
-const SPAWNER_DEC = 100
-const SPAWNER_INITIAL = 3000
+// const SPAWNER_DECINTERVAL = 10000
+// const SPAWNER_DEC = 100
+// const SPAWNER_INITIAL = 3000
 
 let has_focus = true
 let spawn_enemies = true
 let game_over = false
 let spawner
+let t_game_start
+let t_game_m
+let t_game_s
+let t_game_ms
 // ?--------- Quick-access variables ---------- //
 let $player
 let $playarea
@@ -66,7 +70,10 @@ let playarea
 let $graphics
 let $graph
 let $overlay
+let $controls
 let center
+let $msg
+let $timer
 // ?--------------- Graph stuff --------------- //
 let nodes = []
 let lines = []
@@ -175,6 +182,7 @@ class Entity {
 			this.Die()
 	}
 	Die() {
+		this.element.addClass('dead')
 		this.hp = -1
 		this.element.animate({ opacity: 0 }, {
 			duration: 500,
@@ -253,8 +261,14 @@ class Mage extends Entity{
 			this.Die()
 	}
 	Die() {
+		this.element.addClass('dead')
+		let skewv = 0
+		$({skewv}).animate({skewv:10}, {
+			duration: 1000,
+			step: (now) => this.element.find('.body').css('--skew-v', now)
+		})
 		this.element.animate({ opacity: 0 }, {
-			duration: 500,
+			duration: 1000,
 			complete: function () {this.remove()}
 		})
 		let magelines = $('#circle-lines').children().toArray().filter(p => $(p).attr('data-mage-ids').includes(`${this.id}`))
@@ -266,7 +280,7 @@ class Mage extends Entity{
 			complete: () => $(magelines).remove()
 		})
 		FlashOverlay('rgb(255 0 0 / 100%)')
-		setTimeout(() => this.Remove(), 500)
+		setTimeout(() => this.Remove(), 1000)
 	}
 }
 // ?------------ Runtime variables ------------ //
@@ -305,10 +319,10 @@ $(function(){
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
 	$('*').on('selectstart', () => {return false})
-	$(window).on('contextmenu', (e) => e.preventDefault())
+	// $(window).on('contextmenu', (e) => e.preventDefault())
 	$(window).on('mousemove', (e) => mouse.pos = {
-		x: (e.clientX-playarea.getBoundingClientRect().x)/vmin(1) - 50,
-		y: (e.clientY-playarea.getBoundingClientRect().y)/vmin(1) - 50
+		x: (e.clientX-$playarea[0].getBoundingClientRect().x)/vmin(1) - 50,
+		y: (e.clientY-$playarea[0].getBoundingClientRect().y)/vmin(1) - 50
 	})
 	$(window).on('mousedown', (e) => {
 		if (e.button == 0) mouse.holdL = true
@@ -342,6 +356,9 @@ $(function(){
 			case 32:
 				player.isAttacking = true
 				break
+			case 67:
+				($controls.css('opacity') >= 0.5) ?
+					$controls.stop().animate({opacity: 0}, 500) : $controls.stop().animate({opacity: 1}, 500)
 		}
 	})
 	$(window).on('keyup', (e) => {
@@ -370,10 +387,14 @@ $(function(){
 				break
 		}
 	})
+
 	// * Create incantation circle
 	center = new Node(player.pos)
-	center.element.css('--r', INCANTATION_CIRCLE_SIZE)
+	center.element
+		.css('--r', INCANTATION_CIRCLE_SIZE)
+		.css('--zind', -2)
 		[0].id = 'nonagon-infinity'
+	
 	// * Create and place mages
 	for (let i=0; i<MAGES; i++){
 		let mage = new Mage()
@@ -383,6 +404,7 @@ $(function(){
 		)
 		$('#mages').append(mage.element)
 	}
+
 	// * Create complete graph between mages
 	mages.forEach((v, i) => 
 		mages.forEach((w, j) => {
@@ -392,6 +414,27 @@ $(function(){
 		}))
 	$graphics.find('#circle-lines').find('path').addClass('incantation-lines')
 	UpdateSVG($graphics.find('#circle-lines'))
+
+	// * Animate incantation lines appearing
+	setTimeout(() => {
+		let circlelines = $('#circle-lines > path')
+		circlelines.each((i, e) => {
+			setTimeout(() => {
+				let lw = 0
+				$({lw}).animate({lw: 2}, {
+					duration: 300,
+					step: (now) => $(e)
+						.css('stroke-width', `${now/10}vmin`),
+					complete: () => $(e)
+						.css('animation', 'line-throb 1s linear infinite alternate-reverse')
+				})
+			}, 200 + (i*200))
+		})
+	}, 12000)
+
+	// * Display controls
+	setTimeout(() => $controls.animate({opacity: 1}, 500), 20000)
+	
 	// * Spread dust motes over the circle
 	let motes_1_qnt = 15
 	let motes_1_dist = 1
@@ -418,6 +461,7 @@ $(function(){
 		}, 5, $graphics.find('#dust'))
 			.css('animation', 'none')
 
+	// * Start if player is ready
 	let start = setInterval(() => {
 		if (player.ready) {
 			clearInterval(start)
@@ -435,44 +479,60 @@ $(function(){
 // ?------------- Game functions -------------- //
 function StartGame() {
 	// * Hide readyup text
-	$('#readyup').toggle()
-	// * Animate incantation lines appearing
-	let lw = 0
-	$({lw}).animate({lw: 2}, {
-		duration: 3000,
-		step: (now) => $('#circle-lines > path')
-			.css('stroke-width', `${now/10}vmin`),
-		complete: () => $('#circle-lines > path')
-			.css('animation', 'line-throb 1s linear infinite alternate-reverse')
-	})
+	$('#readyup').remove()
+
+	// * Hide premise
+	$('#premise').css('opacity', 1)
+	$('#premise').animate({opacity: 0}, 500)
+
+	// * Hide controls
+	if ($controls.css('opacity') > 0)
+		$controls.animate({opacity: 0}, 500)
+
+	// * Display starting message
+	setTimeout(() => {
+		ShowMessage('Enemies will come,\nprotect the cultists.')
+		ShowMessage('Be careful where you walk.')
+	}, 2000)
+
 	// * Start game loop
 	setInterval(GameLoop, 32)
-	setTimeout(() => {
-		// * Enemy spawn interval
-		let spawn_interval = SPAWNER_INITIAL
-		let timer = SPAWNER_DECINTERVAL
-		spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
-		// * Spawn interval controller
-		setInterval(() => {
-			if (document.hidden) return
-			if (!spawn_enemies) return
-			if (game_over) return
-			timer -= 1000
-			if (timer <= 0){
-				clearInterval(spawner)
-				spawn_interval -= SPAWNER_DEC
-				timer = SPAWNER_DECINTERVAL
-				log('New spawn interval is '+spawn_interval)
-				spawner = setInterval(() => SpawnEnemies(), spawn_interval)
-			}
-		}, 1000)
-	}, 3000)
+
+	// * Start timer
+	t_game_start = Date.now()
+
+	// * Start enemy spawner
+
+	// setTimeout(() => {
+	// 	// * Enemy spawn interval
+	// 	let spawn_interval = SPAWNER_INITIAL
+	// 	let timer = SPAWNER_DECINTERVAL
+	// 	spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
+	// 	// * Spawn interval controller
+	// 	setInterval(() => {
+	// 		if (document.hidden) return
+	// 		if (!spawn_enemies) return
+	// 		if (game_over) return
+	// 		timer -= 1000
+	// 		if (timer <= 0){
+	// 			clearInterval(spawner)
+	// 			spawn_interval -= SPAWNER_DEC
+	// 			timer = SPAWNER_DECINTERVAL
+	// 			log('New spawn interval is '+spawn_interval)
+	// 			ShowMessage('Swiftly they come...')
+	// 			spawner = setInterval(() => SpawnEnemies(), spawn_interval)
+	// 		}
+	// 	}, 1000)
+	// }, 3000)
 }
 function SpawnEnemies(number=1, template={hp:ENEMY_HP, atk:ENEMY_ATK}) {
 	if (document.hidden) return
 	if (!spawn_enemies) return
 	if (game_over) return
-	new Enemy().Place()
+	while (number > 0) {
+		new Enemy().Place()
+		number--
+	}
 }
 function GameLoop() {
 	if (game_over) return
@@ -495,6 +555,9 @@ function GameLoop() {
 		})
 		return
 	}
+	let time = Date.now() - t_game_start
+	$timer.text(`${String(t_game_m=parseInt(time/60000)).padStart(2, '0')}:${String(t_game_s=parseInt(time/1000%60)).padStart(2, '0')}:${String(t_game_ms=parseInt(time%1000)).padStart(3, '0')}`)
+
 	player.movement.is = (
 		(
 			player.movement.left
@@ -506,7 +569,7 @@ function GameLoop() {
 			&& player.pos.x != mouse.pos.x
 			&& player.pos.y != mouse.pos.y
 		)
-	)
+		)
 	DoMovement()
 	DoBoundaryCheck()
 	DoAttack()
@@ -516,10 +579,12 @@ function GameLoop() {
 function UpdateVariables() {
 	$player = $('#player')
 	$playarea = $('#playarea')
-	playarea = $playarea[0]
 	$graph = $('#graph')
 	$graphics = $('#graphics')
 	$overlay = $('#overlay')
+	$controls = $('#controls')
+	$msg = $('#messages')
+	$timer = $('#timer')
 }
 function DoMovement() {
 	player.element.find('.body')
@@ -726,6 +791,19 @@ function FindWithinRange(range=PLAYER_INTER_RANGE, list=entities) {
 			targets.push(inter)
 	})
 	return targets
+}
+function ShowMessage(msg='', options={duration: 4000, stop:false, callback:null}) {
+	if (options.stop)
+		$msg.stop(false)
+	$msg.animate({opacity:1}, {
+		duration: 300,
+		start: () => $msg.html(msg.replaceAll('\n','<br>'))
+	})
+		.delay(options.duration)
+		.animate({opacity:0}, {
+			duration: 300,
+			start: () => (options.callback != null)? options.callback() : null
+		})
 }
 
 // ?------------ Graph functions ------------ //

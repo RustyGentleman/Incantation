@@ -7,16 +7,14 @@
    <title>Incantation</title>
    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> -->
    <script src="jquery.min.js"></script>
-   <script src="script.js"></script>
+   <script defer src="script.js"></script>
+   <script src="timer.js"></script>
    <link rel="stylesheet" href="style.css">
    <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
 </head>
 <body>
    <section id="overlay"></section>
    <section id="playarea">
-      <div id="readyup">
-         Press &lt;P&gt; when ready
-      </div>
       <section id="mages"></section>
       <section id="enemies"></section>
       <section id="graphics">
@@ -27,11 +25,66 @@
          <svg id="graph" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
          <div id="nodes"></div>
       </section>
+      <section id="UI">
+         <div id="timer">0:00:00</div>
+         <div id="messages">This is a test message</div>
+         <div id="readyup">
+            Press &lt;P&gt; when ready<br>
+            Press &lt;C&gt; to show controls
+         </div>
+      </section>
    </section>
    <section id="intro">
-      <div>
+      <div id="title-subtitle">
          <span id="title">Incantation</span><br>
-         <span id="subtitle">To banish evil</span>
+         <span id="subtitle">To banish evil</span><br>
+      </div>
+      <div id="premise">
+         <span class="premise" id="p1">Evil lurks throughout the realm.</span><br>
+         <span class="premise" id="p2">You must invoke the Lord of Lightning,<br>
+                              so that he may smite it down.</span><br>
+         <br>
+         <span class="premise" id="p3">Nonagon Infinity opens the door.</span><br>
+         <span class="premise" id="p4">You'll make sure that it does.</span>
+         <br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+         <span class="premise" id="p5">The dust upon the ground protects you, but not them.</span><br>
+         <br>
+         <span class="premise" id="p6">Spread it as you walk, but do not connect the end of a path to another,</span><br>
+         <span class="premise" id="p7">lest it all end in a deadly discharge of energy.</span>
+         <br><br><br><br>
+      </div>
+   </section>
+   <section id="controls">
+      <div id="movement">
+         Movement:<br>
+         <div class="keygroup" id="wasd">
+            <div>
+               <span class="key">W</span>
+            </div>
+            <div>
+               <span class="key">A</span>
+               <span class="key">S</span>
+               <span class="key">D</span>
+            </div>
+         </div>
+         /
+         <span class="mouse right"></span>
+         /
+         <div class="keygroup" id="arrows">
+            <div>
+               <span class="key" id="up"></span>
+            </div>
+            <div>
+               <span class="key" id="left"></span>
+               <span class="key" id="down"></span>
+               <span class="key" id="right"></span>
+            </div>
+         </div>
+      </div>
+      <div id="attack">
+         Attack:<br>
+         <span class="key" id="space"><span>Space</span></span>
+         /<span class="mouse left"></span>
       </div>
    </section>
 </body>
