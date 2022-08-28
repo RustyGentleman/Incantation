@@ -319,7 +319,7 @@ $(function(){
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
 	$('*').on('selectstart', () => {return false})
-	// $(window).on('contextmenu', (e) => e.preventDefault())
+	$(window).on('contextmenu', (e) => e.preventDefault())
 	$(window).on('mousemove', (e) => mouse.pos = {
 		x: (e.clientX-$playarea[0].getBoundingClientRect().x)/vmin(1) - 50,
 		y: (e.clientY-$playarea[0].getBoundingClientRect().y)/vmin(1) - 50
@@ -503,27 +503,27 @@ function StartGame() {
 
 	// * Start enemy spawner
 
-	// setTimeout(() => {
-	// 	// * Enemy spawn interval
-	// 	let spawn_interval = SPAWNER_INITIAL
-	// 	let timer = SPAWNER_DECINTERVAL
-	// 	spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
-	// 	// * Spawn interval controller
-	// 	setInterval(() => {
-	// 		if (document.hidden) return
-	// 		if (!spawn_enemies) return
-	// 		if (game_over) return
-	// 		timer -= 1000
-	// 		if (timer <= 0){
-	// 			clearInterval(spawner)
-	// 			spawn_interval -= SPAWNER_DEC
-	// 			timer = SPAWNER_DECINTERVAL
-	// 			log('New spawn interval is '+spawn_interval)
-	// 			ShowMessage('Swiftly they come...')
-	// 			spawner = setInterval(() => SpawnEnemies(), spawn_interval)
-	// 		}
-	// 	}, 1000)
-	// }, 3000)
+	setTimeout(() => {
+		// * Enemy spawn interval
+		let spawn_interval = SPAWNER_INITIAL
+		let timer = SPAWNER_DECINTERVAL
+		spawner = setInterval(() => SpawnEnemies(), SPAWNER_INITIAL)
+		// * Spawn interval controller
+		setInterval(() => {
+			if (document.hidden) return
+			if (!spawn_enemies) return
+			if (game_over) return
+			timer -= 1000
+			if (timer <= 0){
+				clearInterval(spawner)
+				spawn_interval -= SPAWNER_DEC
+				timer = SPAWNER_DECINTERVAL
+				log('New spawn interval is '+spawn_interval)
+				ShowMessage('Swiftly they come...')
+				spawner = setInterval(() => SpawnEnemies(), spawn_interval)
+			}
+		}, 1000)
+	}, 3000)
 }
 function SpawnEnemies(number=1, template={hp:ENEMY_HP, atk:ENEMY_ATK}) {
 	if (document.hidden) return
