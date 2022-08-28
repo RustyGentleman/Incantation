@@ -487,9 +487,11 @@ section#overlay {
   --angle: 0;
   --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0;
   --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1;
+  --filter: none;
   transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale));
   transform-origin: bottom center;
   transition: transform 56ms ease, filter 20ms ease;
+  filter: var(--filter);
 }
 .entity .shadow {
   width: 1rem;
@@ -538,8 +540,7 @@ section#overlay {
 }
 .entity.hit .body {
   --scale: 1.1;
-  filter: brightness(1.5);
-  transition: transform 30ms ease, filter 30ms ease;
+  --filter: brightness(1.5);
 }
 
 .dead .hp {
