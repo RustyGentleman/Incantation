@@ -1,8 +1,6 @@
 style.sass.min.css
 style.sass.min.css.map
 assets/keycap_pressed.png
-assets/keycap_unpressed.png
 media/*
 assets/vec-att-1/*
-assets/favicon.ico
 jquery.js

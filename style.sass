@@ -30,6 +30,11 @@ $max-depth: 15
       opacity: 0
    100%
       opacity: 1
+@keyframes node-reveal
+   0%
+      opacity: 0
+   100%
+      opacity: calc( ($max-depth - var(--depth)) / $max-depth)
 @keyframes hide
    0%
       opacity: 1
@@ -72,6 +77,21 @@ $max-depth: 15
       box-shadow: 0 0 4rem 1rem red
    100%
       box-shadow: 0 0 15rem 1rem red
+@keyframes powerup-bob
+   0%
+      transform: translateY(calc(-50% - 0rem)) scale(var(--scale))
+   100%
+      transform: translateY(calc(-50% - .7rem)) scale(var(--scale))
+@keyframes powerup-shadow-flicker
+   0%
+      opacity: 1
+   100%
+      opacity: 0.5
+@keyframes powerup-shine
+   0%
+      filter: contrast(1) brightness(1)
+   100%
+      filter: contrast(0.5) brightness(1.5)
 
 // ------------------
 // --- Structural ---
@@ -102,7 +122,6 @@ section
    overflow: hidden
    cursor: cell
 
-
 // ------------------
 // ----- Graph ------
 // ------------------
@@ -117,22 +136,27 @@ section
       // stroke-width: 0
       stroke: rgba(255, 255, 255, 0.5)
       opacity: calc(0.3 + ($max-depth - var(--depth)) / $max-depth)
-node.entity
+
+node
+   --r: 5
    --depth: 0
    --zind: -1
-   opacity: 1
-   animation: reveal 300ms 1 forwards
-   .body
-      --r: 5
-      height: calc(var(--r) * 1rem)
-      width: calc(var(--r) * 1rem)
-      background-color: transparent
-      background-size: cover
-      // border: solid $g-strokes white
-      box-shadow: none
-      opacity: calc( ($max-depth - var(--depth)) / $max-depth)
-      transform-origin: center center
-      transition: opacity 300ms ease
+   --rot: 0
+   position: absolute
+   top: 50%
+   left: 50%
+   animation: node-reveal 300ms 1
+   height: calc(var(--r) * 1rem)
+   width: calc(var(--r) * 1rem)
+   background-color: transparent
+   background-size: cover
+   box-shadow: none
+   opacity: calc( ($max-depth - var(--depth)) / $max-depth)
+   transform-origin: center center
+   transition: opacity 300ms ease
+   transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin)) translateX(-50%) translateY(-50%) rotate(calc(var(--rot)))
+   z-index: -1
+   border-radius: 100%
 
 // ------------------
 // ---- Sections ----
@@ -200,13 +224,15 @@ section#UI
       place-content: center
       align-items: center
    #timer
+      opacity: 0
       font-size: 3rem
-      // opacity: 0
       margin-top: 2rem
       text-align: center
+      animation: reveal .3s ease 5 alternate forwards
+      animation-play-state: paused
    #messages
       font-size: 1.5rem
-      // opacity: 0
+      opacity: 0
       text-align: center
    #readyup
       font-family: 'DePixel Illegible'
@@ -322,6 +348,7 @@ section#overlay
    background-image: url(assets/dither.png)
    background-blend-mode: soft-light
    transition: background-color 300ms ease
+
 // ------------------
 // - Game elements --
 // ------------------
@@ -347,7 +374,7 @@ section#overlay
       width: 1rem
       height: 2rem
       background-color: var(--color)
-      border-radius: 45%
+      border-radius: 100%
       box-shadow: 0 0 10px 0 black
       --skew-h: 0
       --skew-v: 0
@@ -415,6 +442,7 @@ section#overlay
    --color: rgb(0, 217, 255)
    .body
       // background-image: radial-gradient(ellipse 20% 8% at calc(25%) 35%, black 80%, transparent 100%), radial-gradient(ellipse 20% 8% at calc(75%) 35%, black 80%, transparent 100%)
+      border-radius: 45%
    .rangefinder
       // filter: hue-rotate(hue(cyan))
 
@@ -439,43 +467,60 @@ section#overlay
       transform: translateY(calc(-50% + 0.2rem - var(--rise) * 1rem)) matrix(var(--matrix)) scale(var(--scale))
    .shadow
       top: -0.5rem
-   &[data-id="1"]
+   &[data-entity-id="1"]
       --color: #d90300
       .body
          background-image: url('assets/mage-1.png')
-   &[data-id="2"]
+   &[data-entity-id="2"]
       --color: #fe01ef
       .body
          background-image: url('assets/mage-2.png')
-   &[data-id="3"]
+   &[data-entity-id="3"]
       --color: #00e204
       .body
          background-image: url('assets/mage-3.png')
-   &[data-id="4"]
+   &[data-entity-id="4"]
       --color: #e2e505
       .body
          background-image: url('assets/mage-4.png')
-   &[data-id="5"]
+   &[data-entity-id="5"]
       --color: #9a9a9a
       .body
          background-image: url('assets/mage-5.png')
-   &[data-id="6"]
+   &[data-entity-id="6"]
       --color: #8b0b49
       .body
          background-image: url('assets/mage-6.png')
-   &[data-id="7"]
+   &[data-entity-id="7"]
       --color: #02dae7
       .body
          background-image: url('assets/mage-7.png')
-   &[data-id="8"]
+   &[data-entity-id="8"]
       --color: #e16a00
       .body
          background-image: url('assets/mage-8.png')
-   &[data-id="9"]
+   &[data-entity-id="9"]
       --color: #0132E1
       .body
          background-image: url('assets/mage-9.png')
 
+.powerup
+   .body
+      --height: 0rem
+      height: 2rem
+      width: 2rem
+      background-size: contain
+      background-color: transparent
+      background-repeat: no-repeat
+      background-position: center center
+      box-shadow: none
+      animation: powerup-bob 1.5s ease-in-out infinite alternate, powerup-shine .3s ease-in-out infinite alternate
+   .shadow
+      animation: powerup-shadow-flicker 1.5s ease-in-out infinite alternate
+   &.atk .body
+      background-image: url('assets/powerup-atk.gif')
+      transform-origin: bottom
+      --scale: 1.7
 // ------------------
 // ---- Graphics ----
 // ------------------
@@ -491,3 +536,51 @@ section#overlay
       path
          stroke-width: 0
          stroke: red
+
+// ------------------
+// -- No graphics ---
+// ------------------
+
+body.low-graphics
+   section#overlay
+      // opacity: 0
+      background-image: none !important
+      background-color: none !important
+   // .rangefinder
+   //    background-image: none
+   #circle-lines path
+      animation: none !important
+      box-shadow: 0 0 8rem 1rem red
+
+body.graph-view
+   #player .body
+      position: relative
+      height: 3rem
+      background: linear-gradient(to top, red 0%, transparent 1rem), grey
+      border-radius: 0% 0% 0% 100%
+      // border: solid .2rem white
+      transform: translateY(-50%) rotate(24deg)
+      transform-origin: center
+      transition: none
+      &::after
+         content: ''
+         display: block
+         position: absolute
+         top: -95%
+         right: -5%
+         height: 3rem
+         width: .6rem
+         border-radius: .2rem
+         background: rgb(50 50 50)
+
+   #incantation-circle #circle-lines path,
+   .mage
+      display: none
+   node
+      --r: 0 !important
+      background-image: none !important
+      border: solid .5rem white
+   #nonagon-infinity
+      --r: 8 !important
+   #dust
+      display: none
