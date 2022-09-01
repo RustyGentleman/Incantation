@@ -505,6 +505,7 @@ section#overlay
          background-image: url('assets/mage-9.png')
 
 .powerup
+   filter: drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10))
    .body
       --height: 0rem
       height: 2rem
@@ -521,6 +522,30 @@ section#overlay
       background-image: url('assets/powerup-atk.gif')
       transform-origin: bottom
       --scale: 1.7
+   &.atkRange .body
+      background-image: url('assets/powerup-atkRange.png')
+   &.atkCooldownTime
+      filter: hue-rotate(103deg) brightness(1.7) drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10))
+      .body
+         background-image: url('assets/powerup-atk.gif')
+         transform-origin: bottom
+         --scale: 1.7
+         &::after
+            background-image: url('assets/hourglass.gif')
+            background-size: contain
+            background-color: transparent
+            background-repeat: no-repeat
+            background-position: center center
+            height: .7rem
+            width: .7rem
+            content: ''
+            position: absolute
+            bottom: -5%
+            right: 20%
+   &.speed .body
+      background-image: url('assets/powerup-speed.png')
+      --scale: 1.2
+   &.heal .body
 // ------------------
 // ---- Graphics ----
 // ------------------

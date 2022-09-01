@@ -708,6 +708,9 @@ section#overlay {
   background-image: url("assets/mage-9.png");
 }
 
+.powerup {
+  filter: drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10));
+}
 .powerup .body {
   --height: 0rem;
   height: 2rem;
@@ -729,7 +732,34 @@ section#overlay {
   transform-origin: bottom;
   --scale: 1.7;
 }
-
+.powerup.atkRange .body {
+  background-image: url("assets/powerup-atkRange.png");
+}
+.powerup.atkCooldownTime {
+  filter: hue-rotate(103deg) brightness(1.7) drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10));
+}
+.powerup.atkCooldownTime .body {
+  background-image: url("assets/powerup-atk.gif");
+  transform-origin: bottom;
+  --scale: 1.7;
+}
+.powerup.atkCooldownTime .body::after {
+  background-image: url("assets/hourglass.gif");
+  background-size: contain;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center center;
+  height: 0.7rem;
+  width: 0.7rem;
+  content: "";
+  position: absolute;
+  bottom: -5%;
+  right: 20%;
+}
+.powerup.speed .body {
+  background-image: url("assets/powerup-speed.png");
+  --scale: 1.2;
+}
 #nonagon-infinity .body {
   animation: nonagon-flash 5s linear 12s 1 forwards, nonagon-pulse 2s linear 17s infinite alternate-reverse;
 }

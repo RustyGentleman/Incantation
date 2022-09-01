@@ -26,6 +26,8 @@ const warn = (e) => {
 const abs = Math.abs
 const round = Math.round
 const random = Math.random
+const min = Math.min
+const max = Math.max
 const cos = Math.cos
 const sin = Math.sin
 const PI = Math.PI
@@ -120,7 +122,7 @@ class Line {
 	constructor(node1, node2) {
 		this.ends = {v:node1, w:node2}
 		this.element = DrawLine(node1.pos, node2.pos)
-			.css('--depth', Math.max(node1.depth, node2.depth))
+			.css('--depth', max(node1.depth, node2.depth))
 		node1.neighbors?.push(node2)
 		node2.neighbors?.push(node1)
 		lines.push(this)
@@ -172,14 +174,16 @@ class Entity {
 		this.pos.y = y
 	}
 	GetAttacked(hit, skip_death=false) {
-		this.hp -= hit
+		let initial_hp = this.hp
+		if (hit < 0)
+			this.hp += min(abs(hit), this.maxHP-this.hp)
+		else
+			this.hp -= hit
+		if (initial_hp == this.hp) return
 		this.element.css('--gothit', 1)
 		this.element.find('.hp-bar').css('--hp', round(this.hp / this.maxHP * 100) + '%')
-		// this.element[0].firstElementChild.firstElementChild.firstElementChild.style.setProperty('--hp', round(this.hp / this.maxHP * 100) + '%')
 		this.element.toggleClass('hit')
 		setTimeout(() => this.element.toggleClass('hit'), 100)
-		// this.element[0].classList.add('hit')
-		// setTimeout(() => this.element[0].classList.remove('hit'), 100)
 		if (skip_death)
 			return this.hp
 		if (this.hp <= 0)
@@ -246,7 +250,7 @@ class Enemy extends Entity{
 	}
 
 	FindTarget() {
-		this.target = FindClosest(1000000, mages, this)
+		return (this.target = FindClosest(1000000, mages, this))
 	}
 	Remove() {
 		enemies = enemies.filter((e) => e != this)
@@ -267,9 +271,9 @@ class Enemy extends Entity{
 			return
 		}
 		if (this.target?.hp <= 0)
-			this.FindTarget()
-		let distance = distance_between(this.pos, this.target.pos)
-		let pos = move_towards(this.pos, this.target.pos, this.speed)
+			if (!this.FindTarget()) return
+		let distance = distance_between(this.pos, this.target?.pos)
+		let pos = move_towards(this.pos, this.target?.pos, this.speed)
 		if (distance < this.atkRange) {
 			this.SetSkew(0, 0, 0)
 			this.Attack(this.target)
@@ -298,8 +302,12 @@ class Mage extends Entity{
 		super.Remove()
 	}
 	GetAttacked(hit) {
+		let initial_hp = this.hp
 		super.GetAttacked(hit, true)
-		FlashOverlay('rgb(255 0 0 / 30%)')
+		if (this.hp < initial_hp)
+			FlashOverlay('rgb(255 0 0 / 30%)')
+		else if (this.hp > initial_hp)
+			FlashOverlay('rgb(0 255 0 / 50%)', 300)
 		if (this.hp <= 0)
 			this.Die()
 	}
@@ -343,8 +351,16 @@ class Powerup extends Entity{
 	}
 
 	Get() {
-		player[this.attribute] += player[`initial_${this.attribute}`] * possible_powerups[this.attribute].bonus
-		ShowMessage(`${possible_powerups[this.attribute].name} ${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%`, {duration:2000, stop:true})
+		if (this.attribute == 'atkCooldownTime') {
+			player[this.attribute] *= 1 + possible_powerups[this.attribute].bonus
+			ShowMessage(`${possible_powerups[this.attribute].name} doubled.`, {duration:3000, stop:true})
+		}else if (this.attribute == 'heal') {
+			mages.forEach((m) => m.GetAttacked(min(m.maxHP-m.hp, m.maxHP*possible_powerups[this.attribute].bonus)))
+			ShowMessage(`All mages healed by ${parseInt(possible_powerups[this.attribute].bonus*100)}%.`, {duration:3000, stop:true})
+		} else {
+			player[this.attribute] += player[`initial_${this.attribute}`] * possible_powerups[this.attribute].bonus
+			ShowMessage(`${possible_powerups[this.attribute].name} ${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%.${(player[`${this.attribute}`]/player[`initial_${this.attribute}`]==1+possible_powerups[this.attribute].bonus)?'':`\nCurrent bonus: ${parseInt(player[`${this.attribute}`]/player[`initial_${this.attribute}`]*100)-100}%`}`, {duration:3000, stop:true})
+		}
 		powerups = powerups.filter((p) => p != this)
 		super.Remove()
 	}
@@ -357,10 +373,26 @@ let mouse = {
 	holdR: false,
 }
 const possible_powerups = {
-	atk: {name:'Attack Power', bonus:0.5},
-	atkRange: {name:'Attack Range', bonus:0.3},
-	atkCooldownTime: {name:'Attack Speed', bonus:-0.3},
-	speed: {name:'Movement Speed', bonus:0.5}
+	atk: {
+		name:'Attack Power',
+		bonus:0.5,
+	},
+	atkRange: {
+		name:'Attack Range',
+		bonus:0.5,
+	},
+	atkCooldownTime: {
+		name:'Attack Speed',
+		bonus:-0.35,
+	},
+	speed: {
+		name:'Movement Speed',
+		bonus:0.5,
+	},
+	heal: {
+		name:'Heal Mages',
+		bonus:0.3,
+	},
 }
 
 let entities = []
@@ -870,7 +902,7 @@ function DoGraphing() {
 					player.connectedNode = closest_node
 					return
 				}
-			else if (closest_node === center && player.connectedNode.neighbors.includes(center) && distance_between(player.pos, center.pos) < INCANTATION_CIRCLE_SIZE) {
+			else if (closest_node === center && player.connectedNode.neighbors.includes(center) && distance_between(player.pos, center.pos) < LINE_BREAK_THRESHOLD) {
 				player.connectedNode = closest_node
 				return
 			}
@@ -902,6 +934,7 @@ function DoEnemyActions() {
 }
 function FlashRangefinder($entity, range=PLAYER_ATK_RNG) {
 	$entity.find('.rangefinder')
+		.stop(true)
 		.css('--radius', range)
 		.animate({opacity:1}, {duration:0})
 		.animate({opacity:0}, {duration:150})
@@ -923,7 +956,7 @@ function FlashOverlay(color='rgb(255 0 0 / 20%)', rampup=0) {
 	setTimeout(() => $overlay
 		.css('transition-duration', ``)
 		.css('background', '')
-	, Math.max(100, rampup))
+	, max(100, rampup))
 }
 function FindClosest(range=PLAYER_ATK_RNG, list=entities, start=player) {
 	let min = Infinity
@@ -994,15 +1027,15 @@ function chaos_hash(inx, iny, offset=0){
 
 // ?----------- Assistive functions ----------- //
 const vh = (v) =>
-	(v * (Math.max(document.documentElement.clientHeight, window.innerHeight || 0))) / 100
+	(v * (max(document.documentElement.clientHeight, window.innerHeight || 0))) / 100
 const vw = (v) =>
-	(v * (Math.max(document.documentElement.clientWidth, window.innerWidth || 0))) / 100
+	(v * (max(document.documentElement.clientWidth, window.innerWidth || 0))) / 100
 const vmin = (v) =>
-	Math.min(vh(v), vw(v))
+	min(vh(v), vw(v))
 const distance_between = (pos1, pos2) =>
 	Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2))
 const clamp = (num, min, max) =>
-	Math.min(Math.max(num, min), max)
+	min(max(num, min), max)
 const place_at_distance = (center, distance) => {
 	let deg = random()*360 * (PI/180)
 	return {x: cos(deg)*distance + center.x, y: sin(deg)*distance + center.y}
