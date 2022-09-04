@@ -233,7 +233,7 @@ class Player extends Entity {
 	SetPos(x, y, skew = false) {
 		super.SetPos(x, y, skew)
 		if (!this.stepSoundCooldown) {
-			PlaySound('step-[].ogg', {volume:0.5, distance:distance_between(player.pos, {x:0,y:0})})
+			PlaySound('step-[].ogg', {volume:0.1})
 			this.stepSoundCooldown = true
 			setTimeout(() => this.stepSoundCooldown = false, 75 / (this.speed/2 * ((this.movement.sprint||mouse.holdR)?SPRINT_MULTIPLIER:1)))
 		}
@@ -327,10 +327,10 @@ class Mage extends Entity{
 			FlashOverlay('rgb(0 255 0 / 50%)', 300)
 		if (this.hp <= 0) {
 			this.Die()
-			PlaySound('mage-death-[].ogg')
+			PlaySound('mage-death-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		}
 		else
-			PlaySound('mage-hit-[].ogg')
+			PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 	}
 	Die() {
 		this.element.addClass('dead')
@@ -904,7 +904,7 @@ function DoAttack() {
 		if (player.attackCooldown) return
 		let targets = FindWithinRange(player.atkRange, enemies)
 		if (targets.length == 0) {
-			PlaySound('hit-[].ogg', {volume:0.1})
+			PlaySound('miss-[].ogg', {volume:1})
 		}
 		targets.forEach((t) => {
 			t.GetAttacked(player.atk)
@@ -1090,6 +1090,7 @@ function ShowMessage(msg='', options={duration:2000, stop:false, doublestop:fals
 function PlaySound(filename, options={shuffleQuantity:4, volume:1.0, distance:0, cooldown:300, pan:0}) {
 	// let src = `assets/sound/${filename.replace('[]', parseInt(random() * ((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)) + 1)}`
 	let src = `assets/sound/${filename.replace('[]', soundID++%((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)+1)}`
+	log(max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)))
 	let sound = new Howl({
 		src: [src],
 		volume: max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)),
@@ -1136,8 +1137,8 @@ const vmin = (v) =>
 	min(vh(v), vw(v))
 const distance_between = (pos1, pos2) =>
 	Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2))
-const clamp = (num, min, max) =>
-	min(max(num, min), max)
+const clamp = (num, min, mx) =>
+	min(max(num, min), mx)
 const place_at_distance = (center, distance) => {
 	let deg = random()*360 * (PI/180)
 	return {x: cos(deg)*distance + center.x, y: sin(deg)*distance + center.y}
