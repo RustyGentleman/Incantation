@@ -278,7 +278,7 @@ section#controls
          top: 60%
          left: 50%
          transform: translate(-50%, -50%)
-         background-image: url('assets/keycap_unpressed.png')
+         background-image: url('assets/sprites/keycap_unpressed.png')
          background-position: center center
          background-size: cover
          background-repeat: no-repeat
@@ -290,23 +290,23 @@ section#controls
          width: auto
          height: .1rem
          border: solid 0.74706510139rem transparent
-         border-image: url(assets/keycap_unpressed.png) 49% 
+         border-image: url(assets/sprites/keycap_unpressed.png) 49% 
          >span
             transform: translateY(-15%)
          &::before
             display: none
       &#up
          height: 0.7rem
-         background-image: url('assets/arrow-up.png')
+         background-image: url('assets/sprites/arrow-up.png')
       &#left
          height: 0.7rem
-         background-image: url('assets/arrow-left.png')
+         background-image: url('assets/sprites/arrow-left.png')
       &#down
          height: 0.7rem
-         background-image: url('assets/arrow-down.png')
+         background-image: url('assets/sprites/arrow-down.png')
       &#right
          height: 0.7rem
-         background-image: url('assets/arrow-right.png')
+         background-image: url('assets/sprites/arrow-right.png')
 
    .keygroup
       display: inline-flex
@@ -338,14 +338,14 @@ section#controls
          background-size: cover
          background-repeat: no-repeat
       &.right::before
-         background-image: url('assets/mouseR.png')
+         background-image: url('assets/sprites/mouseR.png')
       &.left::before
-         background-image: url('assets/mouseL.png')
+         background-image: url('assets/sprites/mouseL.png')
 
 section#overlay
    z-index: 10000
    mix-blend-mode: overlay
-   background-image: url(assets/dither.png)
+   background-image: url(assets/sprites/dither.png)
    background-blend-mode: soft-light
    transition: background-color 300ms ease
 
@@ -402,7 +402,7 @@ section#overlay
    .rangefinder
       position: absolute
       background-image: radial-gradient(circle, rgb(255 255 255 / 10%) 0%, transparent calc(71% - $g-strokes), white calc(71% - $g-strokes))
-      // background-image: url('assets/flash.png')
+      // background-image: url('assets/sprites/flash.png')
       background-size: cover
       height: calc(var(--radius) * 1rem)
       width: calc(var(--radius) * 1rem)
@@ -470,39 +470,39 @@ section#overlay
    &[data-entity-id="1"]
       --color: #d90300
       .body
-         background-image: url('assets/mage-1.png')
+         background-image: url('assets/sprites/mage-1.png')
    &[data-entity-id="2"]
       --color: #fe01ef
       .body
-         background-image: url('assets/mage-2.png')
+         background-image: url('assets/sprites/mage-2.png')
    &[data-entity-id="3"]
       --color: #00e204
       .body
-         background-image: url('assets/mage-3.png')
+         background-image: url('assets/sprites/mage-3.png')
    &[data-entity-id="4"]
       --color: #e2e505
       .body
-         background-image: url('assets/mage-4.png')
+         background-image: url('assets/sprites/mage-4.png')
    &[data-entity-id="5"]
       --color: #9a9a9a
       .body
-         background-image: url('assets/mage-5.png')
+         background-image: url('assets/sprites/mage-5.png')
    &[data-entity-id="6"]
       --color: #8b0b49
       .body
-         background-image: url('assets/mage-6.png')
+         background-image: url('assets/sprites/mage-6.png')
    &[data-entity-id="7"]
       --color: #02dae7
       .body
-         background-image: url('assets/mage-7.png')
+         background-image: url('assets/sprites/mage-7.png')
    &[data-entity-id="8"]
       --color: #e16a00
       .body
-         background-image: url('assets/mage-8.png')
+         background-image: url('assets/sprites/mage-8.png')
    &[data-entity-id="9"]
       --color: #0132E1
       .body
-         background-image: url('assets/mage-9.png')
+         background-image: url('assets/sprites/mage-9.png')
 
 .powerup
    filter: drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10))
@@ -519,19 +519,19 @@ section#overlay
    .shadow
       animation: powerup-shadow-flicker 1.5s ease-in-out infinite alternate
    &.atk .body
-      background-image: url('assets/powerup-atk.gif')
+      background-image: url('assets/sprites/powerup-atk.gif')
       transform-origin: bottom
       --scale: 1.7
    &.atkRange .body
-      background-image: url('assets/powerup-atkRange.png')
+      background-image: url('assets/sprites/powerup-atkRange.png')
    &.atkCooldownTime
       filter: hue-rotate(103deg) brightness(1.7) drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10))
       .body
-         background-image: url('assets/powerup-atk.gif')
+         background-image: url('assets/sprites/powerup-atk.gif')
          transform-origin: bottom
          --scale: 1.7
          &::after
-            background-image: url('assets/hourglass.gif')
+            background-image: url('assets/sprites/hourglass.gif')
             background-size: contain
             background-color: transparent
             background-repeat: no-repeat
@@ -543,7 +543,7 @@ section#overlay
             bottom: -5%
             right: 20%
    &.speed .body
-      background-image: url('assets/powerup-speed.png')
+      background-image: url('assets/sprites/powerup-speed.png')
       --scale: 1.2
    &.heal .body
 // ------------------

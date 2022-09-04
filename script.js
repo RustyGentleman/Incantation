@@ -1,6 +1,7 @@
 // -------------------------------------------- //
 // ?---------------- Preamble ----------------- //
 // -------------------------------------------- //
+
 // ?----------- Pretty console logs ----------- //
 const logcss = `font-family: 'JetBrains Mono', monospace;text-shadow: 0 0 10px black, 0 0 10px black;background: linear-gradient(to right, #4d94ff 0%, #4d94ff 8px, rgb(77 148 255 / 30%) 8px, transparent 50px);color: #4d94ff;padding: 2px 0 2px 30px;`
 const warncss = `font-family: 'JetBrains Mono', monospace;text-shadow: 0 0 10px black, 0 0 10px black;background: linear-gradient(to right, #ffa621 0%, #ffa621 0% 8px, rgb(255 166 33 / 30%) 8px, transparent 50px);color: #ffa621;padding: 2px 0 2px 30px;`
@@ -18,7 +19,6 @@ const warn = (e) => {
 }
 
 // -------------------------------------------- //
-// -------------------------------------------- //
 // ?--------- Variables and Constants --------- //
 // -------------------------------------------- //
 
@@ -34,6 +34,7 @@ const PI = Math.PI
 const save = (property, value) => localStorage.setItem(`Incantation.${property}`, value)
 const get = (property) => localStorage.getItem(`Incantation.${property}`)
 // ?----------- Important variables ----------- //
+const DEBUG = false
 const SPRINT_MULTIPLIER = 1.5
 const PLAYER_SPEED = 0.3
 const PLAYER_ATK = 5
@@ -65,7 +66,9 @@ const SPAWNING_STAGES = [
 
 const TIME_TO_WIN = 5*60*1000
 
-let has_focus = true
+const SOUND_MUTED_DISTANCE = 70
+let soundID = 0
+
 let spawn_enemies = true
 let game_over = false
 let game_paused = false
@@ -174,6 +177,7 @@ class Entity {
 		this.pos.y = y
 	}
 	GetAttacked(hit, skip_death=false) {
+		if (this.hp <= 0) return
 		let initial_hp = this.hp
 		if (hit < 0)
 			this.hp += min(abs(hit), this.maxHP-this.hp)
@@ -186,8 +190,12 @@ class Entity {
 		setTimeout(() => this.element.toggleClass('hit'), 100)
 		if (skip_death)
 			return this.hp
-		if (this.hp <= 0)
+		if (this.hp <= 0) {
 			this.Die()
+			PlaySound('death-[].ogg', {pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
+		}
+		else
+			PlaySound('hit-[].ogg', {pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
 	}
 	Die() {
 		this.element.addClass('dead')
@@ -216,10 +224,19 @@ class Player extends Entity {
 	speed = PLAYER_SPEED
 	ready = false
 	connectedNode = null
+	stepSoundCooldown = false
 
 	constructor() {
 		super(1000, 'player')
 		this.element.attr('id', 'player')
+	}
+	SetPos(x, y, skew = false) {
+		super.SetPos(x, y, skew)
+		if (!this.stepSoundCooldown) {
+			PlaySound('step-[].ogg', {volume:0.5, distance:distance_between(player.pos, {x:0,y:0})})
+			this.stepSoundCooldown = true
+			setTimeout(() => this.stepSoundCooldown = false, 75 / (this.speed/2 * ((this.movement.sprint||mouse.holdR)?SPRINT_MULTIPLIER:1)))
+		}
 	}
 }
 class Enemy extends Entity{
@@ -308,8 +325,12 @@ class Mage extends Entity{
 			FlashOverlay('rgb(255 0 0 / 30%)')
 		else if (this.hp > initial_hp)
 			FlashOverlay('rgb(0 255 0 / 50%)', 300)
-		if (this.hp <= 0)
+		if (this.hp <= 0) {
 			this.Die()
+			PlaySound('mage-death-[].ogg')
+		}
+		else
+			PlaySound('mage-hit-[].ogg')
 	}
 	Die() {
 		this.element.addClass('dead')
@@ -785,8 +806,10 @@ function DoMovement() {
 		let new_pos = move_towards(player.pos, toward, step)
 		let stride = distance_between(player.pos, new_pos)
 		if (mouse.holdR) {
-			if (player.pos.x == mouse.pos.x && player.pos.y == mouse.pos.y)
+			if (player.pos.x == mouse.pos.x && player.pos.y == mouse.pos.y) {
+				if (DEBUG) log ('Can\'t move player: Already at mouse position')
 				return
+			}
 			if (stride > distance_between(player.pos, mouse.pos)) {
 				player.SetPos(mouse.pos.x, mouse.pos.y, true)
 				return
@@ -795,6 +818,12 @@ function DoMovement() {
 		let new_closest_node = FindClosest(100, nodes, {pos:{x:new_pos.x, y:new_pos.y}})
 		if (new_closest_node?.depth <= MAX_DEPTH && distance_between(new_pos, new_closest_node.pos) <= distance_check + stride)
 			player.SetPos(new_pos.x, new_pos.y, true)
+		else {
+			if (!(new_closest_node?.depth <= MAX_DEPTH))
+				if (DEBUG) log("Can't move player: Closest node depth is over max")
+			if (!(distance_between(new_pos, new_closest_node.pos) <= distance_check + stride))
+				if (DEBUG) log("Can't move player: Closest node too far to reach")
+		}
 	}
 	/*
 	function Move(dir){
@@ -874,7 +903,9 @@ function DoAttack() {
 		if (player.movement.able == false) return
 		if (player.attackCooldown) return
 		let targets = FindWithinRange(player.atkRange, enemies)
-		if (!targets) return
+		if (targets.length == 0) {
+			PlaySound('hit-[].ogg', {volume:0.1})
+		}
 		targets.forEach((t) => {
 			t.GetAttacked(player.atk)
 			// let atk_line = new Line(player, t)
@@ -894,40 +925,97 @@ function DoAttack() {
 	}
 }
 function DoGraphing() {
+	/*
+		Check closest node to player.
+	*	If the closest node is the one the player's connected to,
+	#		If the player is too far,
+				Create a node,
+				Connect it to the last node the player was connected to,
+				Connect player to the new node.
+	#	Else, (if the closest node is NOT the one the player's connected to)
+	*		If the player is close enough to the node it's connected to,
+	*			If both nodes are neighbors,
+					Connect player to the closest node.
+	#			If they are not neighbors,
+	!				If the distance between the player and the closest node is half of the line break threshold or less,
+	!					Connect the nodes,
+	-					Connect player to the closest node.
+	#		Else, (if the player is too far from the node it's connected to)
+	*			If the player is close enough to the closest node,
+	-				Connect player to the closest node.
+	#			Else, if the player is NOT close enough to the closest node,
+	-				Create a node,
+	-				Connect it to the last node the player was connected to,
+	-				Connect the player to the new node.
+	*/
+	if (DEBUG) log('#-- DoGraph: Start')
+	//TODO: Make closest_node the center node if it is within range
 	let closest_node = FindClosest(100, nodes)
-	let distance_check = (player.connectedNode === center) ? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
-	if (distance_between(player.pos, player.connectedNode.pos) > distance_check) {
-		if (closest_node != player.connectedNode) {
-			if (player.connectedNode.neighbors.includes(closest_node) && distance_between(player.pos, closest_node.pos) <= (distance_check)) {
-					player.connectedNode = closest_node
-					return
-				}
-			else if (closest_node === center && player.connectedNode.neighbors.includes(center) && distance_between(player.pos, center.pos) < LINE_BREAK_THRESHOLD) {
-				player.connectedNode = closest_node
-				return
-			}
-			else {
-				player.line?.remove()
-				new Line(player.connectedNode, closest_node)
-				player.connectedNode = closest_node
-				GameEnd('cycle')
-				return
-			}
-		}
-		else {
-			if (player.connectedNode.depth >= MAX_DEPTH)
-				return
-			let newnode = new Node(player.pos, player.connectedNode.depth+1)
+	let dist_player_to_closest = distance_between(player.pos, closest_node.pos)
+	// if (closest_node !== player.connectedNode) {
+	// 	log('Closest node, distance:\n' + FindClosest(100, nodes).id + '\n' + distance_between(player.pos, FindClosest(100, nodes).pos))
+	// 	log('Connected node, distance:\n' + player.connectedNode.id + '\n' + distance_between(player.pos, player.connectedNode.pos))
+	// }
+	if (closest_node === player.connectedNode) {
+		if (DEBUG) log('\tDoGraphing: 1 - Closest node === connected node')
+		let distance_check = (closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
+		if (dist_player_to_closest > distance_check) {
+			if (closest_node.depth >= MAX_DEPTH) return
+			if (DEBUG) log('\tDoGraphing: 2 - Closest node is too far: ' + distance_check)
+			let newnode = new Node(player.pos, closest_node.depth+1)
 			player.line?.remove()
-			new Line(player.connectedNode, newnode)
-			//? Drop an extra dust mote inbetween
-			DrawNode({x: newnode.pos.x+(player.connectedNode.pos.x-newnode.pos.x)/2, y: newnode.pos.y+(player.connectedNode.pos.y-newnode.pos.y)/2}, null, $graphics.find('#nodes'), newnode.depth-0.5)
-			//?
-			newnode.depth = player.connectedNode.depth+1
-			newnode.element.css('--depth', newnode.depth)
+			new Line(closest_node, newnode)
+			//# Drop an extra dust mote inbetween:
+			DrawNode({
+				x: newnode.pos.x+(closest_node.pos.x-newnode.pos.x)/2,
+				y: newnode.pos.y+(closest_node.pos.y-newnode.pos.y)/2
+			}, null, $graphics.find('#nodes'), newnode.depth-0.5)
+			// newnode.depth = player.connectedNode.depth+1
+			// newnode.element.css('--depth', newnode.depth)
 			player.connectedNode = newnode
+			log(`Connected player to node ID ${newnode.id}`)
+		}
+	} else {
+		if (DEBUG) log('\tDoGraphing: 1 - Closest node !== connected node')
+		let dist_player_to_connected = distance_between(player.pos, player.connectedNode.pos)
+		let distance_check = (player.connectedNode === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
+		if (dist_player_to_connected <= distance_check) {
+			if (DEBUG) log('\tDoGraphing: 2 - Player is close enough to connected node: ' + distance_check)
+			if (closest_node.neighbors.includes(player.connectedNode)) {
+				if (DEBUG) log('\tDoGraphing: 3 - Nodes are neighbors')
+				player.connectedNode = closest_node
+				log(`Connected player to node ID ${closest_node.id}`)
+			} else if (dist_player_to_closest <= distance_check/2) {
+				if (DEBUG) log('\tDoGraphing: 3 - Nodes are not neighbors, and closest node is too close')
+				player.line?.remove()
+				new Line(closest_node, player.connectedNode)
+				player.connectedNode = closest_node
+				log(`Connected player to node ID ${closest_node.id}`)
+		}
+		} else {
+			if (DEBUG) log('\tDoGraphing: 2 - Player is too far from connected node: ' + distance_check)
+			if (dist_player_to_closest <= distance_check) {
+				if (DEBUG) log('\tDoGraphing: 3 - Player is close enough to closest node')
+				player.connectedNode = closest_node
+			} else {
+				if (DEBUG) log('\tDoGraphing: 3 - Player is too far from closest node: ' + distance_check)
+				if (player.connectedNode.depth >= MAX_DEPTH) return
+				let newnode = new Node(player.pos, player.connectedNode.depth+1)
+				player.line?.remove()
+				new Line(player.connectedNode, newnode)
+				//# Drop an extra dust mote inbetween:
+				DrawNode({
+					x: newnode.pos.x+(player.connectedNode.pos.x-newnode.pos.x)/2,
+					y: newnode.pos.y+(player.connectedNode.pos.y-newnode.pos.y)/2
+				}, null, $graphics.find('#nodes'), newnode.depth-0.5)
+				// newnode.depth = player.connectedNode.depth+1
+				// newnode.element.css('--depth', newnode.depth)
+				player.connectedNode = newnode
+				log(`Connected player to node ID ${newnode.id}`)
+			}
 		}
 	}
+	if (DEBUG) log('#-- DoGraph: End')
 }
 function DoEnemyActions() {
 	enemies.forEach((e) => e.Act())
@@ -964,7 +1052,7 @@ function FindClosest(range=PLAYER_ATK_RNG, list=entities, start=player) {
 	list.forEach(inter => {
 		let distance = distance_between(start.pos, inter.pos)
 		if (distance <= range)
-			if (distance < min) {
+			if (distance < min && (inter.hp == undefined || (inter.hp && inter.hp > 0))) {
 				closest = inter
 				min = distance
 			}
@@ -999,6 +1087,20 @@ function ShowMessage(msg='', options={duration:2000, stop:false, doublestop:fals
 			start: () => (options.callback != null)? options.callback() : null
 		})
 }
+function PlaySound(filename, options={shuffleQuantity:4, volume:1.0, distance:0, cooldown:300, pan:0}) {
+	// let src = `assets/sound/${filename.replace('[]', parseInt(random() * ((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)) + 1)}`
+	let src = `assets/sound/${filename.replace('[]', soundID++%((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)+1)}`
+	let sound = new Howl({
+		src: [src],
+		volume: max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)),
+		stereo: ((options.pan==undefined)?0:options.pan),
+		onplay: () => {
+			cooldown = true
+			setTimeout(() => cooldown = false, (options.cooldown==undefined)?300:options.cooldown)
+		},
+	})
+	sound.play()
+}
 
 // ?------------ Graph functions ------------ //
 const UpdateSVG = (svg=$graph) => svg.html(svg.html())
@@ -1009,7 +1111,7 @@ function DrawLine(from, to, appendTo=$graph) {
 	return appendTo.find('path:last-child')
 }
 function DrawNode(at, radius=5, appendTo=$graphics.find('#nodes'), depth='') {
-	let node = $(`<node style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/mote${round(random()*4)}.png');">`)
+	let node = $(`<node style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/sprites/mote${round(random()*4)}.png');">`)
 	appendTo.append(node)
 	setTimeout(() => node.find('> .body.hidden').removeClass('hidden'), 50)
 	return node
