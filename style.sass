@@ -231,6 +231,13 @@ section#UI
       animation: reveal .3s ease 5 alternate forwards
       animation-play-state: paused
    #messages
+      display: block
+      font-size: 1.5rem
+      opacity: 0
+      text-align: center
+   #notices
+      display: block
+      font-family: 'DePixel Illegible'
       font-size: 1.5rem
       opacity: 0
       text-align: center
@@ -247,14 +254,16 @@ section#UI
 
 section#controls
    display: flex
-   place-content: center
-   place-items: center
-   justify-content: space-between
+   flex-direction: column
+   justify-content: flex-start
+   align-items: flex-start
    padding: 2rem
    opacity: 0
    filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10))
    >div
-      text-align: center
+      // text-align: center
+      margin: .5rem 0
+      padding: .2rem
    *
       vertical-align: middle
 
@@ -546,6 +555,12 @@ section#overlay
       background-image: url('assets/sprites/powerup-speed.png')
       --scale: 1.2
    &.heal .body
+      background-image: url('assets/sprites/powerup-heal.gif')
+      --scale: 1.7
+      filter: saturate(2.5) drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10))
+
+.bonus
+   color: rgb(0, 255, 76)
 // ------------------
 // ---- Graphics ----
 // ------------------
@@ -584,7 +599,7 @@ body.graph-view
       background: linear-gradient(to top, red 0%, transparent 1rem), grey
       border-radius: 0% 0% 0% 100%
       // border: solid .2rem white
-      transform: translateY(-50%) rotate(24deg)
+      transform: translateY(-50%) rotate(17deg)
       transform-origin: center
       transition: none
       &::after
@@ -605,6 +620,8 @@ body.graph-view
       --r: 0 !important
       background-image: none !important
       border: solid .5rem white
+      &.extra
+         display: none
    #nonagon-infinity
       --r: 8 !important
    #dust

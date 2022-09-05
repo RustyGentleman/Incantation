@@ -4,3 +4,6 @@ assets/keycap_pressed.png
 media/*
 assets/vec-att-1/*
 jquery.js
+assets/sound/growl-*.ogg
+assets/sound/perc-*.ogg
+assets/scratch/*

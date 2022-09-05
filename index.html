@@ -12,6 +12,9 @@
    <link rel="stylesheet" href="style.css">
    <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
 
+   <link rel="prefetch" href="assets/sound/activation.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/hum.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/blabber.ogg" as="audio">
    <link rel="prefetch" href="assets/sound/step-1.ogg" as="audio">
    <link rel="prefetch" href="assets/sound/step-2.ogg" as="audio">
    <link rel="prefetch" href="assets/sound/step-3.ogg" as="audio">
@@ -42,6 +45,11 @@
    <link rel="prefetch" href="assets/sound/mage-death-3.ogg" as="audio">
    <link rel="prefetch" href="assets/sound/mage-death-4.ogg" as="audio">
    <link rel="prefetch" href="assets/sound/mage-death-5.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/powerup-1.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/powerup-2.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/powerup-3.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/powerup-4.ogg" as="audio">
+   <link rel="prefetch" href="assets/sound/powerup-5.ogg" as="audio">
 </head>
 <body>
    <section id="overlay"></section>
@@ -58,7 +66,8 @@
       </section>
       <section id="UI">
          <div id="timer"></div>
-         <div id="messages"></div>
+         <div id="messages">Message</div>
+         <div id="notices">Notice</div>
          <div id="readyup">
             Press &lt;P&gt; when ready<br>
             Press &lt;C&gt; to show controls
@@ -116,6 +125,16 @@
          Attack:<br>
          <span class="key" id="space"><span>Space</span></span>
          /<span class="mouse left"></span>
+      </div>
+      <div id="toggles">
+         Toggles:<br>
+         <span><span class="key">C</span> : Controls </span><br>
+         <div style="height: .4rem"></div>
+         <span><span class="key">M</span> : Audio </span><br>
+         <div style="height: .4rem"></div>
+         <span><span class="key">G</span> : No filter/line animations </span><br>
+         <div style="height: .4rem"></div>
+         <span><span class="key">N</span> : Graph view </span><br>
       </div>
    </section>
 </body>

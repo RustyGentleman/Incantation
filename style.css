@@ -393,6 +393,14 @@ section#UI #timer {
           animation-play-state: paused;
 }
 section#UI #messages {
+  display: block;
+  font-size: 1.5rem;
+  opacity: 0;
+  text-align: center;
+}
+section#UI #notices {
+  display: block;
+  font-family: "DePixel Illegible";
   font-size: 1.5rem;
   opacity: 0;
   text-align: center;
@@ -412,15 +420,16 @@ section#UI #readyup {
 
 section#controls {
   display: flex;
-  place-content: center;
-  place-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
   padding: 2rem;
   opacity: 0;
   filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10));
 }
 section#controls > div {
-  text-align: center;
+  margin: 0.5rem 0;
+  padding: 0.2rem;
 }
 section#controls * {
   vertical-align: middle;
@@ -760,6 +769,16 @@ section#overlay {
   background-image: url("assets/sprites/powerup-speed.png");
   --scale: 1.2;
 }
+.powerup.heal .body {
+  background-image: url("assets/sprites/powerup-heal.gif");
+  --scale: 1.7;
+  filter: saturate(2.5) drop-shadow(0 0 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0 0.3vmin rgb(10, 10, 10));
+}
+
+.bonus {
+  color: rgb(0, 255, 76);
+}
+
 #nonagon-infinity .body {
   animation: nonagon-flash 5s linear 12s 1 forwards, nonagon-pulse 2s linear 17s infinite alternate-reverse;
 }
@@ -789,7 +808,7 @@ body.graph-view #player .body {
   height: 3rem;
   background: linear-gradient(to top, red 0%, transparent 1rem), grey;
   border-radius: 0% 0% 0% 100%;
-  transform: translateY(-50%) rotate(24deg);
+  transform: translateY(-50%) rotate(17deg);
   transform-origin: center;
   transition: none;
 }
@@ -812,6 +831,9 @@ body.graph-view node {
   --r: 0 !important;
   background-image: none !important;
   border: solid 0.5rem white;
+}
+body.graph-view node.extra {
+  display: none;
 }
 body.graph-view #nonagon-infinity {
   --r: 8 !important;

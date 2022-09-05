@@ -34,7 +34,7 @@ const PI = Math.PI
 const save = (property, value) => localStorage.setItem(`Incantation.${property}`, value)
 const get = (property) => localStorage.getItem(`Incantation.${property}`)
 // ?----------- Important variables ----------- //
-const DEBUG = false
+const DEBUG = true
 const SPRINT_MULTIPLIER = 1.5
 const PLAYER_SPEED = 0.3
 const PLAYER_ATK = 5
@@ -49,25 +49,83 @@ const ENEMY_ATK_COOLDOWN = 1000
 const ENEMY_HP = 15
 
 const MAGES = 9
-const MAGE_HP = 10
+const MAGE_HP = 20
 
 const INCANTATION_CIRCLE_SIZE = 8
 const LINE_BREAK_THRESHOLD = 4
 const MAX_DEPTH = 15
 const SPAWNER_DECINTERVAL = 60000
-let spawner_stage = 1
-const SPAWNING_STAGES = [
-	{interval: 3000, stats: {}},
-	{interval: 2500, stats: {hp:20, speed:0.3}},
-	{interval: 2000, stats: {hp:10, speed:0.6, atkCooldownTime:800}},
-	{interval: 1500, stats: {hp:20, speed:0.2, atkRange:10, atk:2}},
+let g_stage = -1
+const G_STAGES = [
+	{interval: 3000, stats: {}, message:'STAGE 1'},
+	{interval: 2500, stats: {
+			type: 'stronger',
+			hp:20,
+			speed:0.3,
+		}, message:'STAGE 2\nDo not rest. Do not relent.'
+	},
+	{interval: 2000, stats: {
+			type: 'fast',
+			hp:10,
+			speed:0.6,
+			atkCooldownTime:800,
+		}, message:'STAGE 3\nBe swift. Be merciless.'
+	},
+	{interval: 1500, stats: {
+			type: 'ranged',
+			hp:20,
+			speed:0.2,
+			atkRange:10,
+			atk:2,
+		}, message:'STAGE 4\nSeek them. Smite them.'
+	},
+	{interval: 1000, stats: {
+			type: 'elite',
+			hp:30,
+			speed:0.3,
+			atk:3,
+		}, message:'LAST STAND\nSeek them. Smite them.'
+	},
 ]
-''
+const possible_powerups = {
+	atk: {
+		name:'Attack Power',
+		bonus:0.5,
+	},
+	atkRange: {
+		name:'Attack Range',
+		bonus:0.5,
+	},
+	atkCooldownTime: {
+		name:'Attack Speed',
+		bonus:-0.35,
+	},
+	speed: {
+		name:'Movement Speed',
+		bonus:0.5,
+	},
+	heal: {
+		name:'Heal Mages',
+		bonus:0.3,
+	},
+}
 
 const TIME_TO_WIN = 5*60*1000
 
 const SOUND_MUTED_DISTANCE = 70
 let soundID = 0
+let hum = new Howl({
+	src: ['assets/sound/hum.ogg'],
+	volume: 0,
+	loop: true,
+	preload: true,
+})
+let blabber = new Howl({
+	src: ['assets/sound/blabber.ogg'],
+	volume: 1,
+	loop: true,
+	preload: true,
+})
 
 let spawn_enemies = true
 let game_over = false
@@ -105,7 +163,7 @@ class Node {
 	constructor(pos, depth=0) {
 		this.id = NodeID++
 		this.pos = { x: pos.x, y: pos.y }
-		this.element = DrawNode(this.pos).css('--depth', depth)
+		this.element = DrawNode(this.pos).css('--depth', depth).attr('id', this.id)
 		this.neighbors = []
 		this.depth = depth
 		nodes.push(this)
@@ -240,6 +298,8 @@ class Player extends Entity {
 	}
 }
 class Enemy extends Entity{
+	hp = ENEMY_HP
+	maxHP = ENEMY_HP
 	atk = ENEMY_ATK
 	atkRange = ENEMY_ATK_RANGE
 	atkCooldownTime = ENEMY_ATK_COOLDOWN
@@ -248,10 +308,13 @@ class Enemy extends Entity{
 	timeOfLastAction
 	target
 
-	constructor(stats={hp:ENEMY_HP, atk:ENEMY_ATK, atkRange:ENEMY_ATK_RANGE, atkCooldownTime:ENEMY_ATK_COOLDOWN, speed:ENEMY_SPEED}) {
+	constructor(stats={type:'', hp:ENEMY_HP, atk:ENEMY_ATK, atkRange:ENEMY_ATK_RANGE, atkCooldownTime:ENEMY_ATK_COOLDOWN, speed:ENEMY_SPEED}) {
 		log('Constructing Enemy:')
 		log(stats)
-		super(stats.hp, 'enemy')
+		if (stats.hp)
+			super(stats.hp, `enemy${(stats.type)?` ${stats.type}`:''}`)
+		else
+			super(ENEMY_HP, `enemy${(stats.type)?` ${stats.type}`:''}`)
 		if (stats.atk)
 			this.atk = stats.atk
 		if (stats.atkRange)
@@ -321,16 +384,15 @@ class Mage extends Entity{
 	GetAttacked(hit) {
 		let initial_hp = this.hp
 		super.GetAttacked(hit, true)
-		if (this.hp < initial_hp)
+		if (this.hp < initial_hp) {
 			FlashOverlay('rgb(255 0 0 / 30%)')
-		else if (this.hp > initial_hp)
+			PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
+		} else if (this.hp > initial_hp)
 			FlashOverlay('rgb(0 255 0 / 50%)', 300)
 		if (this.hp <= 0) {
 			this.Die()
 			PlaySound('mage-death-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		}
-		else
-			PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 	}
 	Die() {
 		this.element.addClass('dead')
@@ -374,14 +436,30 @@ class Powerup extends Entity{
 	Get() {
 		if (this.attribute == 'atkCooldownTime') {
 			player[this.attribute] *= 1 + possible_powerups[this.attribute].bonus
-			ShowMessage(`${possible_powerups[this.attribute].name} doubled.`, {duration:3000, stop:true})
+			ShowMessage(`${possible_powerups[this.attribute].name}&nbsp;<span class="bonus">doubled</span>.`, {
+				duration: 3000,
+				stop: true,
+				notice: true,
+				blink: true,
+			})
 		}else if (this.attribute == 'heal') {
 			mages.forEach((m) => m.GetAttacked(min(m.maxHP-m.hp, m.maxHP*possible_powerups[this.attribute].bonus)))
-			ShowMessage(`All mages healed by ${parseInt(possible_powerups[this.attribute].bonus*100)}%.`, {duration:3000, stop:true})
+			ShowMessage(`All mages healed by&nbsp;<span class="bonus">${parseInt(possible_powerups[this.attribute].bonus*100)}%</span>`, {
+				duration: 3000,
+				stop: true,
+				notice: true,
+				blink: true,
+			})
 		} else {
 			player[this.attribute] += player[`initial_${this.attribute}`] * possible_powerups[this.attribute].bonus
-			ShowMessage(`${possible_powerups[this.attribute].name} ${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%.${(player[`${this.attribute}`]/player[`initial_${this.attribute}`]==1+possible_powerups[this.attribute].bonus)?'':`\nCurrent bonus: ${parseInt(player[`${this.attribute}`]/player[`initial_${this.attribute}`]*100)-100}%`}`, {duration:3000, stop:true})
+			ShowMessage(`${possible_powerups[this.attribute].name}&nbsp;<span class="bonus">${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%</span>${(player[`${this.attribute}`]/player[`initial_${this.attribute}`]==1+possible_powerups[this.attribute].bonus)?'':`\nCurrent bonus:&nbsp;<span class="bonus">${parseInt(player[`${this.attribute}`]/player[`initial_${this.attribute}`]*100)-100}%</span>`}`, {
+				duration: 3000,
+				stop: true,
+				notice: true,
+				blink: true,
+			})
 		}
+		PlaySound('powerup-[].ogg')
 		powerups = powerups.filter((p) => p != this)
 		super.Remove()
 	}
@@ -392,28 +470,6 @@ let mouse = {
 	inPlayArea: false,
 	holdL: false,
 	holdR: false,
-}
-const possible_powerups = {
-	atk: {
-		name:'Attack Power',
-		bonus:0.5,
-	},
-	atkRange: {
-		name:'Attack Range',
-		bonus:0.5,
-	},
-	atkCooldownTime: {
-		name:'Attack Speed',
-		bonus:-0.35,
-	},
-	speed: {
-		name:'Movement Speed',
-		bonus:0.5,
-	},
-	heal: {
-		name:'Heal Mages',
-		bonus:0.3,
-	},
 }
 
 let entities = []
@@ -434,8 +490,10 @@ let player = new Player()
 $(function(){
 	log('Ready')
 	UpdateVariables()
+	// * Append player to playarea
 	$playarea.prepend(player.element)
 	UpdateVariables()
+	// * Event listeners
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
 	$('*').on('selectstart', () => {return false})
@@ -488,6 +546,9 @@ $(function(){
 				break
 			case 78:
 				$(document.body).toggleClass('graph-view')
+				break
+			case 77:
+				Howler.volume(Math.abs(Howler.volume()-1))
 				break
 		}
 	})
@@ -548,6 +609,8 @@ $(function(){
 
 	// * Animate incantation lines appearing
 	setTimeout(() => {
+		// * Growl:
+		PlaySound('activation.ogg')
 		let circlelines = $('#circle-lines > path')
 		circlelines.each((i, e) => {
 			setTimeout(() => {
@@ -559,6 +622,12 @@ $(function(){
 					complete: () => $(e)
 						.css('animation', 'line-throb 1s linear infinite alternate-reverse')
 				})
+				// * Hum:
+				Howler.autoUnlock = true
+				if (i == 0) {
+					hum.play()
+					hum.fade(0, 1, 3000)
+				}
 			}, 200 + (i*200))
 		})
 	}, 12000)
@@ -648,11 +717,24 @@ function GameStart() {
 			clearInterval(int_timer)
 		}
 
-		// * Every minute elapsed, you may choose a boon
-		if (t_game_s == 0 && t_game_m < 5) {
-			spawn_enemies = false
+		// * Every minute elapsed, advance enemy spawning stage and offer a boon
+		if (t_game_s == 0 && t_game_m == (G_STAGES.length-1 - g_stage)) {
+			g_stage++
+			clearInterval(int_spawner)
+			int_spawner = setInterval(() => SpawnEnemies(1, G_STAGES[g_stage].stats), G_STAGES[g_stage].interval)
+			if (g_stage == 0) {
+				ShowMessage(G_STAGES[g_stage].message)
+			}
+			log('Timer: Advanced game to stage '+g_stage)
+
+			if (t_game_m >= 5) return
+			// * Offer to choose a boon
+			log('Timer: Pausing game to offer boons')
 			game_paused = true
 			game_pause_start = Date.now()
+			hum.fade(1, 0, 100)
+
+			//- Pick two random boons
 			let choices = []
 			do {
 				let pick = parseInt(random()*Object.keys(possible_powerups).length)
@@ -660,60 +742,42 @@ function GameStart() {
 					choices.push(pick)
 			} while (choices.length < 2)
 			choices = [Object.keys(possible_powerups)[choices[0]], Object.keys(possible_powerups)[choices[1]]]
-			ShowMessage(`Pick a boon:\n[1] ${possible_powerups[choices[0]].name}\n[2] ${possible_powerups[choices[1]].name}`, {duration: 99999999999, stop:true})
-			$(window).one('keydown', (e) => {
+			ShowMessage(`Pick a boon:\n[1] ${possible_powerups[choices[0]].name}\n[2] ${possible_powerups[choices[1]].name}`, {duration: 99999999999, doublestop:true})
+			//- Spawn boon and continue game once selected
+			$(document.body).one('keydown', (e) => {
 				if (e.key == '1') {
 					$msg.stop(false)
+					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
+					g_stage++
 					new Powerup(choices[0])
 					game_paused_time += Date.now() - game_pause_start
 					game_paused = false
-					spawn_enemies = true
+					hum.fade(0, 1, 100)
+					log('Timer: Boon picked')
 				}
 				if (e.key == '2') {
 					$msg.stop(false)
+					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
+					g_stage++
 					new Powerup(choices[1])
 					game_paused_time += Date.now() - game_pause_start
 					game_paused = false
-					spawn_enemies = true
+					hum.fade(0, 1, 100)
+					log('Timer: Boon picked')
 				}
 			})
+
+			//- 
 		}
 		$timer.text(`${String(t_game_m=parseInt(time/60000)).padStart(2, '0')}:${String(t_game_s=parseInt(time/1000%60)).padStart(2, '0')}`)
-	}, 1000)
-
-	// * Start enemy spawner
-
-	setTimeout(() => {
-		// * Enemy spawn interval
-		let timer = SPAWNER_DECINTERVAL
-		int_spawner = setInterval(() => SpawnEnemies(1, SPAWNING_STAGES[spawner_stage].stats), SPAWNING_STAGES[spawner_stage].interval)
-		// * Spawn interval controller
-		let int_spawner_controller = setInterval(() => {
-			if (document.hidden) return
-			if (!spawn_enemies) return
-			if (game_paused) return
-			if (game_over) {
-				clearInterval(int_spawner_controller)
-				clearInterval(int_spawner)
-				return
-			}
-			timer -= 1000
-			if (timer <= 0){
-				clearInterval(int_spawner)
-				timer = SPAWNER_DECINTERVAL
-				spawner_stage++
-				ShowMessage('Swiftly they come...')
-				int_spawner = setInterval(() => SpawnEnemies(1, SPAWNING_STAGES[spawner_stage].stats), SPAWNING_STAGES[spawner_stage].interval)
-			}
-		}, 1000)
-	}, 2000)
+	}, 250)
 }
 function GameLoop() {
 	if (game_paused) return
 	if (game_over) return
+	if (document.hidden) return
 	if (!document.hasFocus())
 		Object.keys(player.movement).forEach(k => (k != 'able') ? player.movement[k] = false : null)
-	if (document.hidden) return
 	// * End game
 	if (mages.length == 0)
 		GameEnd('mages')
@@ -742,7 +806,7 @@ function GameLoop() {
 }
 function GameEnd(reason='') {
 	log(`GameEnd: ${reason}`)
-	return
+	// return
 	game_over = true
 	clearInterval(int_game_loop)
 	
@@ -757,11 +821,13 @@ function GameEnd(reason='') {
 		return
 	// }
 }
-function SpawnEnemies(number=1, stats={hp:ENEMY_HP, atk:ENEMY_ATK, atkRange:ENEMY_ATK_RANGE, atkCooldownTime:ENEMY_ATK_COOLDOWN, speed:ENEMY_SPEED}) {
+function SpawnEnemies(number=1, stats={type:'', hp:ENEMY_HP, atk:ENEMY_ATK, atkRange:ENEMY_ATK_RANGE, atkCooldownTime:ENEMY_ATK_COOLDOWN, speed:ENEMY_SPEED}) {
 	if (document.hidden) return
 	if (!spawn_enemies) return
 	if (game_paused) return
 	if (game_over) return
+	log('SpawnEnemies:')
+	log(stats)
 	while (number > 0) {
 		new Enemy(stats)
 		--number
@@ -948,9 +1014,16 @@ function DoGraphing() {
 	-				Connect it to the last node the player was connected to,
 	-				Connect the player to the new node.
 	*/
+	console.group()
 	if (DEBUG) log('#-- DoGraph: Start')
 	//TODO: Make closest_node the center node if it is within range
-	let closest_node = FindClosest(100, nodes)
+	let closest_node
+	if (distance_between(player.pos, center.pos) <=INCANTATION_CIRCLE_SIZE) {
+		log('DoGraph: Closest node should be the center')
+		closest_node = center
+	}
+	else
+		closest_node = FindClosest(100, nodes)
 	let dist_player_to_closest = distance_between(player.pos, closest_node.pos)
 	// if (closest_node !== player.connectedNode) {
 	// 	log('Closest node, distance:\n' + FindClosest(100, nodes).id + '\n' + distance_between(player.pos, FindClosest(100, nodes).pos))
@@ -958,10 +1031,11 @@ function DoGraphing() {
 	// }
 	if (closest_node === player.connectedNode) {
 		if (DEBUG) log('\tDoGraphing: 1 - Closest node === connected node')
-		let distance_check = (closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
-		if (dist_player_to_closest > distance_check) {
+		let dist_check_closest = (closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
+		if (dist_player_to_closest > dist_check_closest) {
 			if (closest_node.depth >= MAX_DEPTH) return
-			if (DEBUG) log('\tDoGraphing: 2 - Closest node is too far: ' + distance_check)
+			if (DEBUG) log('\tDoGraphing: 2 - Closest node is too far: ' + dist_check_closest)
+			log('=== === ===DoGraphing: 2 - Creating new node')
 			let newnode = new Node(player.pos, closest_node.depth+1)
 			player.line?.remove()
 			new Line(closest_node, newnode)
@@ -969,7 +1043,7 @@ function DoGraphing() {
 			DrawNode({
 				x: newnode.pos.x+(closest_node.pos.x-newnode.pos.x)/2,
 				y: newnode.pos.y+(closest_node.pos.y-newnode.pos.y)/2
-			}, null, $graphics.find('#nodes'), newnode.depth-0.5)
+			}, null, $graphics.find('#nodes'), newnode.depth-0.5, true)
 			// newnode.depth = player.connectedNode.depth+1
 			// newnode.element.css('--depth', newnode.depth)
 			player.connectedNode = newnode
@@ -978,28 +1052,30 @@ function DoGraphing() {
 	} else {
 		if (DEBUG) log('\tDoGraphing: 1 - Closest node !== connected node')
 		let dist_player_to_connected = distance_between(player.pos, player.connectedNode.pos)
-		let distance_check = (player.connectedNode === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
-		if (dist_player_to_connected <= distance_check) {
-			if (DEBUG) log('\tDoGraphing: 2 - Player is close enough to connected node: ' + distance_check)
+		let dist_check_connected = (player.connectedNode === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
+		if (dist_player_to_connected <= dist_check_connected) {
+			if (DEBUG) log('\tDoGraphing: 2 - Player is close enough to connected node: ' + dist_check_connected)
 			if (closest_node.neighbors.includes(player.connectedNode)) {
 				if (DEBUG) log('\tDoGraphing: 3 - Nodes are neighbors')
 				player.connectedNode = closest_node
 				log(`Connected player to node ID ${closest_node.id}`)
-			} else if (dist_player_to_closest <= distance_check/2) {
+			} else if (dist_player_to_closest <= ((closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD/2)) {
 				if (DEBUG) log('\tDoGraphing: 3 - Nodes are not neighbors, and closest node is too close')
 				player.line?.remove()
 				new Line(closest_node, player.connectedNode)
 				player.connectedNode = closest_node
 				log(`Connected player to node ID ${closest_node.id}`)
+				GameEnd('cycle')
 		}
 		} else {
-			if (DEBUG) log('\tDoGraphing: 2 - Player is too far from connected node: ' + distance_check)
-			if (dist_player_to_closest <= distance_check) {
+			if (DEBUG) log('\tDoGraphing: 2 - Player is too far from connected node: ' + dist_check_connected)
+			if (dist_player_to_closest <= ((closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD/2)) {
 				if (DEBUG) log('\tDoGraphing: 3 - Player is close enough to closest node')
 				player.connectedNode = closest_node
 			} else {
-				if (DEBUG) log('\tDoGraphing: 3 - Player is too far from closest node: ' + distance_check)
+				if (DEBUG) log('\tDoGraphing: 3 - Player is too far from closest node: ' + ((closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD/2))
 				if (player.connectedNode.depth >= MAX_DEPTH) return
+				log('\t\tDoGraphing: 3 - Creating new node')
 				let newnode = new Node(player.pos, player.connectedNode.depth+1)
 				player.line?.remove()
 				new Line(player.connectedNode, newnode)
@@ -1007,7 +1083,7 @@ function DoGraphing() {
 				DrawNode({
 					x: newnode.pos.x+(player.connectedNode.pos.x-newnode.pos.x)/2,
 					y: newnode.pos.y+(player.connectedNode.pos.y-newnode.pos.y)/2
-				}, null, $graphics.find('#nodes'), newnode.depth-0.5)
+				}, null, $graphics.find('#nodes'), newnode.depth-0.5, true)
 				// newnode.depth = player.connectedNode.depth+1
 				// newnode.element.css('--depth', newnode.depth)
 				player.connectedNode = newnode
@@ -1016,6 +1092,7 @@ function DoGraphing() {
 		}
 	}
 	if (DEBUG) log('#-- DoGraph: End')
+	console.groupEnd()
 }
 function DoEnemyActions() {
 	enemies.forEach((e) => e.Act())
@@ -1072,25 +1149,53 @@ function FindWithinRange(range=PLAYER_ATK_RNG, list=entities) {
 	})
 	return targets
 }
-function ShowMessage(msg='', options={duration:2000, stop:false, doublestop:false, callback:null}) {
+function ShowMessage(msg='', options={duration:3000, stop:false, doublestop:false, callback:null, notice:false, blink:false}) {
+	options.duration += msg.length * 64
+	let target = $msg
+	if (options.notice)
+		target = $('#notices')
 	if (options.stop)
-		$msg.stop(false)
+		target.stop(false)
 	if (options.doublestop)
-		$msg.stop(true)
-	$msg.animate({opacity:1}, {
+		target.stop(true)
+	target.animate({opacity:1}, {
 		duration: 300,
-		start: () => $msg.html(msg.replaceAll('\n','<br>'))
+		start: () => {
+			blabber.play()
+			let char = 1
+			let reveal = setInterval(() => {
+				if (msg[char-1] == '\\' && msg[char] == 'n')
+					char++
+					target.html(msg.slice(0, char).replaceAll('\n', '<br>'))
+					if (char == msg.length) {
+						blabber.stop()
+						clearInterval(reveal)
+					}
+					char++
+			}, 64)
+		},
+		done: () => {
+			if (options.blink)
+				target.css('animation', '')
+					.css('animation', 'reveal .2s ease 6 alternate-reverse forwards')
+			},
 	})
 		.delay(options.duration)
 		.animate({opacity:0}, {
 			duration: 300,
-			start: () => (options.callback != null)? options.callback() : null
+			start: () => {
+				if (options.blink) {
+					target.css('animation', '')
+				}
+				if (options.callback)
+					options.callback()
+			}
 		})
 }
 function PlaySound(filename, options={shuffleQuantity:4, volume:1.0, distance:0, cooldown:300, pan:0}) {
 	// let src = `assets/sound/${filename.replace('[]', parseInt(random() * ((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)) + 1)}`
+	Howler.autoUnlock = true
 	let src = `assets/sound/${filename.replace('[]', soundID++%((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)+1)}`
-	log(max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)))
 	let sound = new Howl({
 		src: [src],
 		volume: max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)),
@@ -1111,8 +1216,8 @@ function DrawLine(from, to, appendTo=$graph) {
 	UpdateSVG()
 	return appendTo.find('path:last-child')
 }
-function DrawNode(at, radius=5, appendTo=$graphics.find('#nodes'), depth='') {
-	let node = $(`<node style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/sprites/mote${round(random()*4)}.png');">`)
+function DrawNode(at, radius=5, appendTo=$graphics.find('#nodes'), depth='', extra=false) {
+	let node = $(`<node id ${(extra)? 'class="extra"':''} style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/sprites/mote${round(random()*4)}.png');">`)
 	appendTo.append(node)
 	setTimeout(() => node.find('> .body.hidden').removeClass('hidden'), 50)
 	return node
