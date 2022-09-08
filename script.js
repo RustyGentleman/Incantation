@@ -34,7 +34,6 @@ const PI = Math.PI
 const save = (property, value) => localStorage.setItem(`Incantation.${property}`, value)
 const get = (property) => localStorage.getItem(`Incantation.${property}`)
 // ?----------- Important variables ----------- //
-const DEBUG = true
 const SPRINT_MULTIPLIER = 1.5
 const PLAYER_SPEED = 0.3
 const PLAYER_ATK = 5
@@ -72,7 +71,7 @@ const G_STAGES = [
 		}, message:'STAGE 3\nBe swift. Be merciless.'
 	},
 	{interval: 1500, stats: {
-			type: 'ranged',
+			type: 'ranged caster',
 			hp:20,
 			speed:0.2,
 			atkRange:10,
@@ -127,17 +126,6 @@ let blabber = new Howl({
 	preload: true,
 })
 
-let spawn_enemies = true
-let game_over = false
-let game_paused = false
-let game_pause_start
-let game_paused_time = 0
-let int_game_loop
-let int_spawner
-let t_game_end
-let t_game_m
-let t_game_s
-let t_game_ms
 // ?--------- Quick-access variables ---------- //
 let $player
 let $playarea
@@ -163,7 +151,7 @@ class Node {
 	constructor(pos, depth=0) {
 		this.id = NodeID++
 		this.pos = { x: pos.x, y: pos.y }
-		this.element = DrawNode(this.pos).css('--depth', depth).attr('id', this.id)
+		this.element = DrawNode(this.pos).css('--depth', depth).attr('data-id', this.id)
 		this.neighbors = []
 		this.depth = depth
 		nodes.push(this)
@@ -233,6 +221,7 @@ class Entity {
 		}
 		this.pos.x = x
 		this.pos.y = y
+		return this
 	}
 	GetAttacked(hit, skip_death=false) {
 		if (this.hp <= 0) return
@@ -288,6 +277,7 @@ class Player extends Entity {
 		super(1000, 'player')
 		this.element.attr('id', 'player')
 	}
+
 	SetPos(x, y, skew = false) {
 		super.SetPos(x, y, skew)
 		if (!this.stepSoundCooldown) {
@@ -295,9 +285,10 @@ class Player extends Entity {
 			this.stepSoundCooldown = true
 			setTimeout(() => this.stepSoundCooldown = false, 75 / (this.speed/2 * ((this.movement.sprint||mouse.holdR)?SPRINT_MULTIPLIER:1)))
 		}
+		return this
 	}
 }
-class Enemy extends Entity{
+class Enemy extends Entity {
 	hp = ENEMY_HP
 	maxHP = ENEMY_HP
 	atk = ENEMY_ATK
@@ -307,10 +298,9 @@ class Enemy extends Entity{
 	speed = ENEMY_SPEED
 	timeOfLastAction
 	target
+	facingWest
 
 	constructor(stats={type:'', hp:ENEMY_HP, atk:ENEMY_ATK, atkRange:ENEMY_ATK_RANGE, atkCooldownTime:ENEMY_ATK_COOLDOWN, speed:ENEMY_SPEED}) {
-		log('Constructing Enemy:')
-		log(stats)
 		if (stats.hp)
 			super(stats.hp, `enemy${(stats.type)?` ${stats.type}`:''}`)
 		else
@@ -323,6 +313,7 @@ class Enemy extends Entity{
 			this.atkCooldownTime = stats.atkCooldownTime
 		if (stats.speed)
 			this.speed = stats.speed
+		this.element.css('--hue-shift', parseInt(random()*30)-15)
 		enemies.push(this)
 		this.Place()
 		if (mages.length == 0)
@@ -350,28 +341,62 @@ class Enemy extends Entity{
 			this.SetSkew(0, 0, 0)
 			return
 		}
-		if (this.target?.hp <= 0)
-			if (!this.FindTarget()) return
+		if (!this.FindTarget()) return
 		let distance = distance_between(this.pos, this.target?.pos)
 		let pos = move_towards(this.pos, this.target?.pos, this.speed)
 		if (distance < this.atkRange) {
+			this.element.removeClass('walking')
 			this.SetSkew(0, 0, 0)
 			this.Attack(this.target)
 		}
-		else
+		else {
 			this.SetPos(pos.x, pos.y, true)
+			this.element.addClass('walking')
+			if (this.target.pos.x - pos.x < 0)
+				this.facingWest = true
+			else
+				this.facingWest = false
+			this.element.find('.body')
+				.css('animation-duration', 910 * (this.speed*2.5))
+				.css('--flip-h', this.facingWest? 1:0)
+				.find('.hp')
+					.css('--flip-h', this.facingWest? 1:0)
+			if (this.target.pos.y - pos.y < 0)
+				this.element.addClass('back')
+			else
+				this.element.removeClass('back')
+		}
 		this.timeOfLastAction = t_game_s*1000+t_game_ms*10
 	}
 	Attack() {
 		if (this.atkCooldown) return
 		if (this.hp <= 0) return
 		this.atkCooldown = true
-		this.target.GetAttacked(this.atk)
-		// FlashRangefinder(this.element, this.atkRange)
 		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
+		let p = new Projectile(
+			{x: (this.pos.x+(1.2*(this.facingWest? -1:1))), y: this.pos.y-6},
+			{x: this.target.pos.x, y: this.target.pos.y-3},
+			distance_between(this.pos, this.target.pos) * 10,
+			{delayEnd: 1000, callback: () => {
+				this.target.GetAttacked(this.atk)
+				p.element.addClass('reached-end')
+			}}
+		)
+		// FlashRangefinder(this.element, this.atkRange)
+		this.element.removeClass('attacking')
+		this.element.addClass('attacking')
+		setTimeout(() => this.element.removeClass('attacking'), 910)
+	}
+	async Die() {
+		this.hp = -1
+		this.element.addClass('dead')
+		// this.element.css('animation', 'none')
+		// await new Promise(r => setTimeout(r, 100))
+		// this.element.css('animation', '')
+		setTimeout(() => this.Remove(), 2400)
 	}
 }
-class Mage extends Entity{
+class Mage extends Entity {
 	constructor() {
 		super(MAGE_HP, 'mage')
 		mages.push(this)
@@ -395,7 +420,7 @@ class Mage extends Entity{
 		}
 	}
 	Die() {
-		this.element.addClass('dead')
+		this.element.addClass('dying')
 		let skewv = 0
 		$({skewv}).animate({skewv:10}, {
 			duration: 1000,
@@ -417,7 +442,7 @@ class Mage extends Entity{
 		setTimeout(() => this.Remove(), 1000)
 	}
 }
-class Powerup extends Entity{
+class Powerup extends Entity {
 	attribute
 
 	constructor(attribute) {
@@ -464,7 +489,59 @@ class Powerup extends Entity{
 		super.Remove()
 	}
 }
+class Projectile extends Entity {
+	from
+	to
+	travelTime
+	delayBegin
+	delayEnd
+
+	constructor(from, to, travelTime=100, options={delayBegin: 0, delayEnd: 0, nolaunch:false, callback:null}) {
+		super(1000, 'projectile')
+		this.travelTime = travelTime
+		if (options.delayBegin)
+			this.delayBegin = options.delayBegin
+		if (options.delayEnd)
+			this.delayEnd = options.delayEnd
+		if (options.callback)
+			this.callback = options.callback
+		this.element
+			.css('--ttime', this.travelTime+'ms')
+			.find('.body')
+				.css('--angle', angle_between(from, to))
+		this.from = from
+		this.to = to
+		// if (options.nolaunch == undefined || options.nolaunch == false)
+		this.Launch()
+	}
+
+	async Launch() {
+		this.SetPos(this.from.x, this.from.y)
+		$playarea.append(this.element)
+		await new Promise(r => setTimeout(r, 20))
+		await new Promise(r => setTimeout(r, this.delayBegin))
+		this.SetPos(this.to.x, this.to.y)
+		await new Promise(r => setTimeout(r, this.travelTime))
+		if (this.callback)
+			this.callback()
+		await new Promise(r => setTimeout(r, this.delayEnd))
+		this.Remove()
+	}
+}
 // ?------------ Runtime variables ------------ //
+let DEBUG = true
+let spawn_enemies = true
+let game_over = false
+let game_paused = false
+let game_pause_start
+let game_paused_time = 0
+let int_game_loop
+let int_spawner
+let t_game_end
+let t_game_m
+let t_game_s
+let t_game_ms
+let debug_widgets = false
 let mouse = {
 	pos: {x:0, y:0},
 	inPlayArea: false,
@@ -497,7 +574,7 @@ $(function(){
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
 	$('*').on('selectstart', () => {return false})
-	$(window).on('contextmenu', (e) => e.preventDefault())
+	$($overlay).on('contextmenu', (e) => e.preventDefault())
 	$(window).on('mousemove', (e) => mouse.pos = {
 		x: (e.clientX-$playarea[0].getBoundingClientRect().x)/vmin(1) - 50,
 		y: (e.clientY-$playarea[0].getBoundingClientRect().y)/vmin(1) - 50
@@ -549,6 +626,17 @@ $(function(){
 				break
 			case 77:
 				Howler.volume(Math.abs(Howler.volume()-1))
+				break
+			case 112:
+				e.preventDefault()
+				$(document.body).toggleClass('debug-info')
+				let widgets = $('.entity div.debug-widget')
+				if (widgets.length) {
+					widgets.remove()
+					debug_widgets = false
+				}
+				else
+					debug_widgets = true
 				break
 		}
 	})
@@ -607,7 +695,7 @@ $(function(){
 	$graphics.find('#circle-lines').find('path').addClass('incantation-lines')
 	UpdateSVG($graphics.find('#circle-lines'))
 
-	// * Animate incantation lines appearing
+	// * Animate incantation lines appearing (+Growl and Hum)
 	setTimeout(() => {
 		// * Growl:
 		PlaySound('activation.ogg')
@@ -646,19 +734,19 @@ $(function(){
 		DrawNode({
 			x: (INCANTATION_CIRCLE_SIZE - motes_1_dist) * sin(((i * 360 / motes_1_qnt) + 180) * (PI / 180)),
 			y: (INCANTATION_CIRCLE_SIZE - motes_1_dist) * cos(((i * 360 / motes_1_qnt) + 180) * (PI / 180))
-		}, '', $graphics.find('#dust'))
+		}, '5', $graphics.find('#dust'))
 			.css('animation', 'none')
 	for (let i=0; i<motes_2_qnt; i++)
 		DrawNode({
 			x: (INCANTATION_CIRCLE_SIZE - motes_2_dist) * sin(((i * 360 / motes_2_qnt) + 180) * (PI / 180)),
 			y: (INCANTATION_CIRCLE_SIZE - motes_2_dist) * cos(((i * 360 / motes_2_qnt) + 180) * (PI / 180))
-		}, '', $graphics.find('#dust'))
+		}, '5', $graphics.find('#dust'))
 			.css('animation', 'none')
 	for (let i=0; i<motes_3_qnt; i++)
 		DrawNode({
 			x: (INCANTATION_CIRCLE_SIZE - motes_3_dist) * sin(((i * 360 / motes_3_qnt) + 180) * (PI / 180)),
 			y: (INCANTATION_CIRCLE_SIZE - motes_3_dist) * cos(((i * 360 / motes_3_qnt) + 180) * (PI / 180))
-		}, '', $graphics.find('#dust'))
+		}, '5', $graphics.find('#dust'))
 			.css('animation', 'none')
 
 	// * Start if player is ready
@@ -674,6 +762,33 @@ $(function(){
 				player.ready = true
 		})
 	}, 7300)
+
+	// * Render debug widgets
+	setInterval(() => {
+		if (debug_widgets) {
+			entities.forEach((e) => {
+				if (e.constructor.name == 'Mage') return
+				let fields = e.constructor.name+'<br>'
+				Object.keys(e).forEach((k) => {
+					if (k.includes('initial')) return
+					fields += `<span><span>${k}:</span>&nbsp;<span>${
+						(typeof(e[k]) == 'object')?
+							JSON.stringify(e[k], (key, val) => {
+								if (k == 'pos') return JSON.stringify(val).replaceAll('"', '').replaceAll(/\.\d+/g, '')
+								if (typeof(val) == 'object') return '{}'
+							}).replaceAll('"', '').replaceAll(':',': ')
+							: (e[k] === true)? 'yep'
+							: (e[k] === false)? 'nah'
+							: e[k]
+					}</span></span>`
+				})
+				if (e.element.find('.debug-widget').length)
+					e.element.find('.debug-widget').html(fields)
+				else
+					e.element.append($(`<div class="debug-widget">${fields}</div>`))
+			})
+		}
+	}, 100)
 })
 
 // ?------------- Game functions -------------- //
@@ -794,7 +909,7 @@ function GameLoop() {
 			&& player.pos.y != mouse.pos.y
 		)
 		)
-	
+	// * Render player-connectedNode line
 	player.line?.remove()
 	player.line = DrawLine(player.pos, player.connectedNode.pos)
 	FindWithinRange(PLAYER_PICKUP_RANGE, powerups).forEach((p) => p.Get())
@@ -806,6 +921,8 @@ function GameLoop() {
 }
 function GameEnd(reason='') {
 	log(`GameEnd: ${reason}`)
+	$controls.stop().animate({opacity: 0}, 300)
+	hum.fade(1, 0, 50)
 	// return
 	game_over = true
 	clearInterval(int_game_loop)
@@ -826,8 +943,6 @@ function SpawnEnemies(number=1, stats={type:'', hp:ENEMY_HP, atk:ENEMY_ATK, atkR
 	if (!spawn_enemies) return
 	if (game_paused) return
 	if (game_over) return
-	log('SpawnEnemies:')
-	log(stats)
 	while (number > 0) {
 		new Enemy(stats)
 		--number
@@ -991,6 +1106,7 @@ function DoAttack() {
 	}
 }
 function DoGraphing() {
+	let DEBUG = false
 	/*
 		Check closest node to player.
 	*	If the closest node is the one the player's connected to,
@@ -1014,28 +1130,22 @@ function DoGraphing() {
 	-				Connect it to the last node the player was connected to,
 	-				Connect the player to the new node.
 	*/
-	console.group()
+	if (DEBUG) console.group()
 	if (DEBUG) log('#-- DoGraph: Start')
 	//TODO: Make closest_node the center node if it is within range
 	let closest_node
-	if (distance_between(player.pos, center.pos) <=INCANTATION_CIRCLE_SIZE) {
-		log('DoGraph: Closest node should be the center')
+	if (distance_between(player.pos, center.pos) <=INCANTATION_CIRCLE_SIZE)
 		closest_node = center
-	}
 	else
 		closest_node = FindClosest(100, nodes)
 	let dist_player_to_closest = distance_between(player.pos, closest_node.pos)
-	// if (closest_node !== player.connectedNode) {
-	// 	log('Closest node, distance:\n' + FindClosest(100, nodes).id + '\n' + distance_between(player.pos, FindClosest(100, nodes).pos))
-	// 	log('Connected node, distance:\n' + player.connectedNode.id + '\n' + distance_between(player.pos, player.connectedNode.pos))
-	// }
 	if (closest_node === player.connectedNode) {
 		if (DEBUG) log('\tDoGraphing: 1 - Closest node === connected node')
 		let dist_check_closest = (closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD
 		if (dist_player_to_closest > dist_check_closest) {
 			if (closest_node.depth >= MAX_DEPTH) return
 			if (DEBUG) log('\tDoGraphing: 2 - Closest node is too far: ' + dist_check_closest)
-			log('=== === ===DoGraphing: 2 - Creating new node')
+			if (DEBUG) log('=== === ===DoGraphing: 2 - Creating new node')
 			let newnode = new Node(player.pos, closest_node.depth+1)
 			player.line?.remove()
 			new Line(closest_node, newnode)
@@ -1047,7 +1157,7 @@ function DoGraphing() {
 			// newnode.depth = player.connectedNode.depth+1
 			// newnode.element.css('--depth', newnode.depth)
 			player.connectedNode = newnode
-			log(`Connected player to node ID ${newnode.id}`)
+			if (DEBUG) log(`Connected player to node ID ${newnode.id}`)
 		}
 	} else {
 		if (DEBUG) log('\tDoGraphing: 1 - Closest node !== connected node')
@@ -1058,13 +1168,13 @@ function DoGraphing() {
 			if (closest_node.neighbors.includes(player.connectedNode)) {
 				if (DEBUG) log('\tDoGraphing: 3 - Nodes are neighbors')
 				player.connectedNode = closest_node
-				log(`Connected player to node ID ${closest_node.id}`)
+				if (DEBUG) log(`Connected player to node ID ${closest_node.id}`)
 			} else if (dist_player_to_closest <= ((closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD/2)) {
 				if (DEBUG) log('\tDoGraphing: 3 - Nodes are not neighbors, and closest node is too close')
 				player.line?.remove()
 				new Line(closest_node, player.connectedNode)
 				player.connectedNode = closest_node
-				log(`Connected player to node ID ${closest_node.id}`)
+				if (DEBUG) log(`Connected player to node ID ${closest_node.id}`)
 				GameEnd('cycle')
 		}
 		} else {
@@ -1075,7 +1185,7 @@ function DoGraphing() {
 			} else {
 				if (DEBUG) log('\tDoGraphing: 3 - Player is too far from closest node: ' + ((closest_node === center)? INCANTATION_CIRCLE_SIZE : LINE_BREAK_THRESHOLD/2))
 				if (player.connectedNode.depth >= MAX_DEPTH) return
-				log('\t\tDoGraphing: 3 - Creating new node')
+				if (DEBUG) log('\t\tDoGraphing: 3 - Creating new node')
 				let newnode = new Node(player.pos, player.connectedNode.depth+1)
 				player.line?.remove()
 				new Line(player.connectedNode, newnode)
@@ -1087,7 +1197,7 @@ function DoGraphing() {
 				// newnode.depth = player.connectedNode.depth+1
 				// newnode.element.css('--depth', newnode.depth)
 				player.connectedNode = newnode
-				log(`Connected player to node ID ${newnode.id}`)
+				if (DEBUG) log(`Connected player to node ID ${newnode.id}`)
 			}
 		}
 	}
@@ -1195,11 +1305,21 @@ function ShowMessage(msg='', options={duration:3000, stop:false, doublestop:fals
 function PlaySound(filename, options={shuffleQuantity:4, volume:1.0, distance:0, cooldown:300, pan:0}) {
 	// let src = `assets/sound/${filename.replace('[]', parseInt(random() * ((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)) + 1)}`
 	Howler.autoUnlock = true
+	if (options.shuffleQuantity==undefined)
+		options.shuffleQuantity = 4
+	if (options.volume==undefined)
+		options.volume = 1
+	if (options.distance==undefined)
+		options.distance = 0
+	if (options.cooldown==undefined)
+		options.cooldown = 300
+	if (options.pan==undefined)
+		options.pan = 0
 	let src = `assets/sound/${filename.replace('[]', soundID++%((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)+1)}`
 	let sound = new Howl({
 		src: [src],
-		volume: max(0, ((options.volume==undefined)?1.0:options.volume) - (((options.distance==undefined)?0:options.distance/SOUND_MUTED_DISTANCE)/2)),
-		stereo: ((options.pan==undefined)?0:options.pan),
+		volume: max(0, options.volume - (options.distance/SOUND_MUTED_DISTANCE)/2),
+		stereo: clamp(options.pan, -1, 1),
 		onplay: () => {
 			cooldown = true
 			setTimeout(() => cooldown = false, (options.cooldown==undefined)?300:options.cooldown)
@@ -1216,8 +1336,8 @@ function DrawLine(from, to, appendTo=$graph) {
 	UpdateSVG()
 	return appendTo.find('path:last-child')
 }
-function DrawNode(at, radius=5, appendTo=$graphics.find('#nodes'), depth='', extra=false) {
-	let node = $(`<node id ${(extra)? 'class="extra"':''} style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/sprites/mote${round(random()*4)}.png');">`)
+function DrawNode(at, radius='', appendTo=$graphics.find('#nodes'), depth='', extra=false) {
+	let node = $(`<node id data-id ${(extra)? 'class="extra"':''} style="${(radius)?`--r:${radius};`:''}${(depth)?`--depth:${depth};`:''}--rot:${round(random()*360)}deg;--x: ${at.x};--y: ${at.y};background-image: url('assets/sprites/mote${round(random()*4)}.png');">`)
 	appendTo.append(node)
 	setTimeout(() => node.find('> .body.hidden').removeClass('hidden'), 50)
 	return node
@@ -1242,8 +1362,8 @@ const vmin = (v) =>
 	min(vh(v), vw(v))
 const distance_between = (pos1, pos2) =>
 	Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2))
-const clamp = (num, min, mx) =>
-	min(max(num, min), mx)
+const clamp = (num, mn, mx) =>
+	min(max(num, mn), mx)
 const place_at_distance = (center, distance) => {
 	let deg = random()*360 * (PI/180)
 	return {x: cos(deg)*distance + center.x, y: sin(deg)*distance + center.y}

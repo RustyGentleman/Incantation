@@ -239,6 +239,38 @@
     filter: contrast(0.5) brightness(1.5);
   }
 }
+@-webkit-keyframes bg-scroll-x {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@keyframes bg-scroll-x {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@-webkit-keyframes bg-scroll-death {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@keyframes bg-scroll-death {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -283,7 +315,7 @@ section {
 }
 
 node {
-  --r: 5;
+  --r: 4;
   --depth: 0;
   --zind: -1;
   --rot: 0;
@@ -303,6 +335,11 @@ node {
   transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin)) translateX(-50%) translateY(-50%) rotate(calc(var(--rot)));
   z-index: -1;
   border-radius: 100%;
+}
+node.tint {
+  --hue-shift: 0;
+  filter: hue-rotate(calc(var(--hue-shift) * 1deg));
+  background-color: red;
 }
 
 section#playarea {
@@ -564,29 +601,32 @@ section#overlay {
   height: 2rem;
   background-color: var(--color);
   border-radius: 100%;
-  box-shadow: 0 0 10px 0 black;
   --skew-h: 0;
   --skew-v: 0;
   --angle: 0;
   --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0;
   --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1;
-  --filter: none;
-  transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale));
+  --filter: sepia(0);
+  --flip-h: 0;
+  --flip-v: 0;
+  transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
   transform-origin: bottom center;
   transition: transform 56ms ease, filter 20ms ease;
-  filter: var(--filter);
+  filter: var(--filter) drop-shadow(0 0 0.1rem rgb(10, 10, 10));
 }
-.entity .shadow {
+.entity .shadow::before {
+  content: "";
   width: 1rem;
   height: 1rem;
-  background-color: black;
+  background-color: rgb(10, 10, 10);
   border-radius: 100%;
   position: absolute;
   top: -0.5rem;
   left: -0.5rem;
   z-index: -1;
   filter: blur(5px);
-  transform: rotateX(60deg) scale(1.5);
+  --transform: skew(0);
+  transform: rotateX(60deg) scale(1.5) var(--transform);
 }
 .entity .rangefinder {
   position: absolute;
@@ -607,7 +647,8 @@ section#overlay {
   position: absolute;
   bottom: -20%;
   left: 50%;
-  transform: translateX(-50%);
+  --flip-h: 0;
+  transform: translateX(-50%) rotateY(calc(var(--flip-h) * 180deg));
   width: 1.2rem;
   height: 0.3rem;
   background-color: black;
@@ -622,8 +663,8 @@ section#overlay {
   background-color: var(--color);
 }
 .entity.hit .body {
-  --scale: 1.1;
-  --filter: brightness(1.5);
+  --scale: 1.15;
+  --filter: brightness(1.5) contrast(0.5);
 }
 
 .dead .hp {
@@ -637,10 +678,61 @@ section#overlay {
   border-radius: 45%;
 }
 .enemy {
-  --color: rgb(150, 0, 0);
+  --color: rgb(200,0,0);
+  --hue-shift: 20;
+  filter: hue-rotate(calc(var(--hue-shift) * 1deg));
 }
 .enemy .body {
+  background-image: url(assets/sprites/enemy-caster-idle.png);
   border-radius: 100% 100% 0 0;
+}
+
+.enemy {
+  filter: hue-rotate(calc(var(--hue-shift) * 1deg + 10deg));
+}
+.enemy .body {
+  width: 3.3rem;
+  height: 3.3rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/enemy-caster-idle.png);
+  background-position-x: 0%;
+  background-size: cover;
+  border-radius: 100% 100% 0 0;
+  transform: translateY(calc(-50% + 0.35rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
+}
+.enemy.attacking .body {
+  background-image: url(assets/sprites/enemy-caster-attack.png);
+  -webkit-animation: bg-scroll-x 910ms steps(6, end);
+          animation: bg-scroll-x 910ms steps(6, end);
+  -webkit-animation-iteration-count: 1;
+          animation-iteration-count: 1;
+}
+.enemy.walking .body {
+  background-image: url(assets/sprites/enemy-caster-walk.png);
+  -webkit-animation: bg-scroll-x 750ms steps(3, end) 0s infinite;
+          animation: bg-scroll-x 750ms steps(3, end) 0s infinite;
+}
+.enemy.dead .body {
+  background-image: url(assets/sprites/enemy-caster-death.png) !important;
+  -webkit-animation: bg-scroll-death 2400ms steps(15, end) 0s 1 forwards !important;
+          animation: bg-scroll-death 2400ms steps(15, end) 0s 1 forwards !important;
+}
+.enemy.dead .shadow {
+  z-index: -10000;
+  -webkit-animation: hide 1s ease 1s 1 forwards;
+          animation: hide 1s ease 1s 1 forwards;
+}
+.enemy.back .body {
+  background-image: url(assets/sprites/enemy-caster-idle-back.png);
+}
+.enemy.back.attacking .body {
+  background-image: url(assets/sprites/enemy-caster-attack-back.png);
+}
+.enemy.back.walking .body {
+  background-image: url(assets/sprites/enemy-caster-walk-back.png);
+}
+.enemy.back.dead .body {
+  background-image: url(assets/sprites/enemy-caster-death-back.png) !important;
 }
 
 .mage {
@@ -658,9 +750,6 @@ section#overlay {
   border-radius: 0 0 100% 100%;
   filter: drop-shadow(0 0.3vmin 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0.3vmin 0.3vmin rgb(10, 10, 10));
   transform: translateY(calc(-50% + 0.2rem - var(--rise) * 1rem)) matrix(var(--matrix)) scale(var(--scale));
-}
-.mage .shadow {
-  top: -0.5rem;
 }
 .mage[data-entity-id="1"] {
   --color: #d90300;
@@ -793,6 +882,35 @@ section#overlay {
   stroke: red;
 }
 
+.projectile {
+  --ttime: 300ms;
+  --angle: 0deg;
+  transition: transform var(--ttime) linear;
+  transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin));
+  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10));
+  box-shadow: none;
+}
+.projectile .shadow {
+  display: none;
+}
+.projectile .body {
+  width: 2rem;
+  height: 3rem;
+  transform: none;
+  background-color: transparent;
+  background-image: url(assets/sprites/enemy-caster-projectile.png);
+  background-position-x: 0%;
+  background-position-y: bottom;
+  background-repeat: no-repeat;
+  background-size: 600% 2rem;
+  filter: drop-shadow(0 0 0.1rem white);
+  transform: translateY(-50%) rotate(calc(90deg + var(--angle) * 1rad));
+}
+.projectile.reached-end .body {
+  -webkit-animation: bg-scroll-x 500ms steps(5, end) 1 forwards;
+          animation: bg-scroll-x 500ms steps(5, end) 1 forwards;
+}
+
 body.low-graphics section#overlay {
   background-image: none !important;
   background-color: none !important;
@@ -832,6 +950,17 @@ body.graph-view node {
   background-image: none !important;
   border: solid 0.5rem white;
 }
+body.graph-view node::before {
+  display: none;
+  content: attr(data-id);
+  font-family: "DePixel Halbfett";
+  color: black;
+  filter: drop-shadow(0 0 0.1rem white) drop-shadow(0 0 0.1rem white);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
 body.graph-view node.extra {
   display: none;
 }
@@ -840,5 +969,20 @@ body.graph-view #nonagon-infinity {
 }
 body.graph-view #dust {
   display: none;
+}
+
+body.debug-info .entity .debug-widget {
+  position: absolute;
+  background: rgba(10, 10, 10, 0.75);
+  border: solid 0.1rem rgba(200, 200, 200, 0.75);
+  border-radius: 0.5rem;
+  padding: 0.3rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+body.debug-info .entity .debug-widget > span {
+  font-size: 0.6rem;
+  display: flex;
+  justify-content: space-between;
 }
 /*# sourceMappingURL=style.css.map */

@@ -92,6 +92,16 @@ $max-depth: 15
       filter: contrast(1) brightness(1)
    100%
       filter: contrast(0.5) brightness(1.5)
+@keyframes bg-scroll-x
+   0%
+      background-position-x: 0%
+   100%
+      background-position-x: 100%
+@keyframes bg-scroll-death
+   0%
+      background-position-x: 0%
+   100%
+      background-position-x: 100%
 
 // ------------------
 // --- Structural ---
@@ -138,7 +148,7 @@ section
       opacity: calc(0.3 + ($max-depth - var(--depth)) / $max-depth)
 
 node
-   --r: 5
+   --r: 4
    --depth: 0
    --zind: -1
    --rot: 0
@@ -157,6 +167,10 @@ node
    transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin)) translateX(-50%) translateY(-50%) rotate(calc(var(--rot)))
    z-index: -1
    border-radius: 100%
+   &.tint
+      --hue-shift: 0
+      filter: hue-rotate(calc(var(--hue-shift) * 1deg))
+      background-color: red
 
 // ------------------
 // ---- Sections ----
@@ -384,30 +398,33 @@ section#overlay
       height: 2rem
       background-color: var(--color)
       border-radius: 100%
-      box-shadow: 0 0 10px 0 black
       --skew-h: 0
       --skew-v: 0
       --angle: 0
       --matrix: 1, 0, calc(0.05 * var(--skew-h)), calc(1 + calc(0.05 * var(--skew-v))), 0, 0
       --matrixtd: 1, 0, 0, 0, 0, calc(1 + calc(0.05 * var(--skew-v))), 0, 0, 0, 0, 1, 0, 0, calc(-1 + var(--skew-v)), 0, 1
-      --filter: none
+      --filter: sepia(0)
+      --flip-h: 0
+      --flip-v: 0
       // --matrix: 1, 0, 0.05, 1, -1, 0
       // --matrixtd: 1, 0, 0, 0, 0, 1.05, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1
-      transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale))
+      transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg))
       transform-origin: bottom center
       transition: transform 56ms ease, filter 20ms ease
-      filter: var(--filter)
-   .shadow
+      filter: var(--filter) drop-shadow(0 0 .1rem rgb(10, 10, 10))
+   .shadow::before
+      content: ''
       width: 1rem
       height: 1rem
-      background-color: black
+      background-color: rgb(10, 10, 10)
       border-radius: 100%
       position: absolute
       top: -0.5rem
       left: -0.5rem
       z-index: -1
       filter: blur(5px)
-      transform: rotateX(60deg) scale(1.5)
+      --transform: skew(0)
+      transform: rotateX(60deg) scale(1.5) var(--transform)
    .rangefinder
       position: absolute
       background-image: radial-gradient(circle, rgb(255 255 255 / 10%) 0%, transparent calc(71% - $g-strokes), white calc(71% - $g-strokes))
@@ -427,7 +444,8 @@ section#overlay
       position: absolute
       bottom: -20%
       left: 50%
-      transform: translateX(-50%)
+      --flip-h: 0
+      transform: translateX(-50%) rotateY(calc(var(--flip-h) * 180deg))
       width: 1.2rem
       height: 0.3rem
       background-color: black
@@ -440,8 +458,8 @@ section#overlay
          height: 100%
          background-color: var(--color)
    &.hit .body
-      --scale: 1.1
-      --filter: brightness(1.5)
+      --scale: 1.15
+      --filter: brightness(1.5) contrast(0.5)
       // transition: transform 30ms ease, filter 30ms ease
 
 .dead .hp
@@ -456,9 +474,47 @@ section#overlay
       // filter: hue-rotate(hue(cyan))
 
 .enemy
-   --color: rgb(150, 0, 0)
+   --color: rgb(200,0,0)
+   --hue-shift: 20
+   filter: hue-rotate(calc(var(--hue-shift) * 1deg))
    .body
+      background-image: url(assets/sprites/enemy-caster-idle.png)
       border-radius: 100% 100% 0 0
+
+.enemy //.caster
+   filter: hue-rotate(calc(var(--hue-shift) * 1deg + 10deg))
+   .body
+      width: 3.3rem
+      height: 3.3rem
+      background-color: transparent
+      background-image: url(assets/sprites/enemy-caster-idle.png)
+      background-position-x: 0%
+      background-size: cover
+      border-radius: 100% 100% 0 0
+      transform: translateY(calc(-50% + 0.35rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg)) //matrix(var(--matrix))
+   &.attacking .body
+      background-image: url(assets/sprites/enemy-caster-attack.png)
+      animation: bg-scroll-x 910ms steps(6, end)
+      animation-iteration-count: 1
+   &.walking .body
+      background-image: url(assets/sprites/enemy-caster-walk.png)
+      animation: bg-scroll-x 750ms steps(3, end) 0s infinite
+   &.dead
+      .body
+         background-image: url(assets/sprites/enemy-caster-death.png) !important
+         animation: bg-scroll-death 2400ms steps(15, end) 0s 1 forwards !important
+      .shadow
+         z-index: -10000
+         animation: hide 1s ease 1s 1 forwards
+   &.back
+      .body
+         background-image: url(assets/sprites/enemy-caster-idle-back.png)
+      &.attacking .body
+         background-image: url(assets/sprites/enemy-caster-attack-back.png)
+      &.walking .body
+         background-image: url(assets/sprites/enemy-caster-walk-back.png)
+      &.dead .body
+         background-image: url(assets/sprites/enemy-caster-death-back.png) !important
 
 .mage
    --color: rgb(0, 100, 255)
@@ -474,8 +530,6 @@ section#overlay
       border-radius: 0 0 100% 100%
       filter: drop-shadow(0 0.3vmin 0.1vmin rgb(10, 10, 10)) drop-shadow(0 0.3vmin 0.3vmin rgb(10, 10, 10))
       transform: translateY(calc(-50% + 0.2rem - var(--rise) * 1rem)) matrix(var(--matrix)) scale(var(--scale))
-   .shadow
-      top: -0.5rem
    &[data-entity-id="1"]
       --color: #d90300
       .body
@@ -561,6 +615,7 @@ section#overlay
 
 .bonus
    color: rgb(0, 255, 76)
+
 // ------------------
 // ---- Graphics ----
 // ------------------
@@ -576,6 +631,30 @@ section#overlay
       path
          stroke-width: 0
          stroke: red
+
+.projectile
+   --ttime: 300ms
+   --angle: 0deg
+   transition: transform var(--ttime) linear
+   transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin))
+   filter: drop-shadow(0 0 .3rem rgb(10, 10, 10))
+   box-shadow: none
+   .shadow
+      display: none
+   .body
+      width: 2rem
+      height: 3rem
+      transform: none
+      background-color: transparent
+      background-image: url(assets/sprites/enemy-caster-projectile.png)
+      background-position-x: 0%
+      background-position-y: bottom
+      background-repeat: no-repeat
+      background-size: 600% 2rem
+      filter: drop-shadow(0 0 .1rem white)
+      transform: translateY(-50%) rotate(calc(90deg + var(--angle) * 1rad))
+   &.reached-end .body
+      animation: bg-scroll-x 500ms steps(5, end) 1 forwards
 
 // ------------------
 // -- No graphics ---
@@ -620,9 +699,33 @@ body.graph-view
       --r: 0 !important
       background-image: none !important
       border: solid .5rem white
+      &::before
+         display: none
+         content: attr(data-id)
+         font-family: 'DePixel Halbfett'
+         color: black
+         filter: drop-shadow(0 0 .1rem white) drop-shadow(0 0 .1rem white)
+         position: absolute
+         left: 50%
+         top: 50%
+         transform: translate(-50%, -50%)
       &.extra
          display: none
    #nonagon-infinity
       --r: 8 !important
    #dust
       display: none
+
+body.debug-info
+   .entity .debug-widget
+      position: absolute
+      background: rgb(10 10 10 / 75%)
+      border: solid .1rem rgb(200 200 200 / 75%)
+      border-radius: .5rem
+      padding: .3rem
+      font-family: monospace
+      font-size: .8rem
+      > span
+         font-size: .6rem
+         display: flex
+         justify-content: space-between
