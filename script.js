@@ -53,37 +53,38 @@ const MAGE_HP = 20
 const INCANTATION_CIRCLE_SIZE = 8
 const LINE_BREAK_THRESHOLD = 4
 const MAX_DEPTH = 15
-const SPAWNER_DECINTERVAL = 60000
 let g_stage = -1
 const G_STAGES = [
-	{interval: 3000, stats: {}, message:'STAGE 1'},
-	{interval: 2500, stats: {
+	{interval: 2000, number: 1, stats: {}, message:'STAGE 1\nStand your ground.\nTread carefully.'},
+	{interval: 1500, number: 1, stats: {
 			type: 'stronger',
-			hp:20,
+			hp:30,
 			speed:0.3,
-		}, message:'STAGE 2\nDo not rest. Do not relent.'
+			atk: 2,
+		}, message:'STAGE 2\nDo not rest.\nDo not relent.'
 	},
-	{interval: 2000, stats: {
+	{interval: 3000, number: 3, stats: {
 			type: 'fast',
 			hp:10,
 			speed:0.6,
 			atkCooldownTime:800,
-		}, message:'STAGE 3\nBe swift. Be merciless.'
+			atkRange: 3,
+		}, message:'STAGE 3\nBe swift.\nBe merciless.'
 	},
-	{interval: 1500, stats: {
-			type: 'ranged caster',
+	{interval: 1000, number: 1, stats: {
+			type: 'heavy',
+			hp:30,
+			speed:0.3,
+			atk:3,
+		}, message:'STAGE 4\nDo not waver.\nDo not falter.'
+	},
+	{interval: 1500, number: 1, stats: {
+			type: 'caster',
 			hp:20,
 			speed:0.2,
 			atkRange:10,
 			atk:2,
-		}, message:'STAGE 4\nSeek them. Smite them.'
-	},
-	{interval: 1000, stats: {
-			type: 'elite',
-			hp:30,
-			speed:0.3,
-			atk:3,
-		}, message:'LAST STAND\nSeek them. Smite them.'
+		}, message:'LAST STAND\nSeek them.\nSmite them.'
 	},
 ]
 const possible_powerups = {
@@ -201,7 +202,7 @@ class Entity {
 		this.id = EntityID++
 		this.maxHP = hp
 		this.hp = hp
-		this.element = $(`<div class="entity${(clss!='')?` ${clss}`:''}" data-entity-id="${this.id}"><div class="body"><div class="hp"><div class="hp-bar"></div></div></div><div class="shadow"></div><div class="rangefinder"></div></div>`)
+		this.element = $(`<div ${clss.includes('lol')?'id="lord-of-lightning"':''} class="entity${(clss!=''&&!clss.includes('lol'))?` ${clss}`:''}" data-entity-id="${this.id}"><div class="body"><div class="hp"><div class="hp-bar"></div></div></div><div class="shadow"></div><div class="rangefinder"></div></div>`)
 		entities.push(this)
 	}
 
@@ -223,7 +224,7 @@ class Entity {
 		this.pos.y = y
 		return this
 	}
-	GetAttacked(hit, skip_death=false) {
+	GetAttacked(hit, skip_death=false, sound=0, pan=true) {
 		if (this.hp <= 0) return
 		let initial_hp = this.hp
 		if (hit < 0)
@@ -235,14 +236,25 @@ class Entity {
 		this.element.find('.hp-bar').css('--hp', round(this.hp / this.maxHP * 100) + '%')
 		this.element.toggleClass('hit')
 		setTimeout(() => this.element.toggleClass('hit'), 100)
+		if (this.hp >= this.maxHP)
+			this.element.css('--gothit', 0)
+		if (sound) {
+			if (this.hp <= 0) {
+				if (pan)
+					PlaySound('death-[].ogg', {volume:sound, pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
+				else
+					PlaySound('death-[].ogg', {volume:sound})
+			}
+			else if (pan)
+				PlaySound('hit-[].ogg', {volume:sound, pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
+			else
+				PlaySound('hit-[].ogg', {volume:sound})
+		}
 		if (skip_death)
 			return this.hp
 		if (this.hp <= 0) {
 			this.Die()
-			PlaySound('death-[].ogg', {pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
 		}
-		else
-			PlaySound('hit-[].ogg', {pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
 	}
 	Die() {
 		this.element.addClass('dead')
@@ -313,15 +325,21 @@ class Enemy extends Entity {
 			this.atkCooldownTime = stats.atkCooldownTime
 		if (stats.speed)
 			this.speed = stats.speed
-		this.element.css('--hue-shift', parseInt(random()*30)-15)
+		if (stats.type?.includes('fast'))
+			this.element.css('--hue-shift', parseInt(random()*50)-25)
+		else
+			this.element.css('--hue-shift', parseInt(random()*30)-15)
 		enemies.push(this)
 		this.Place()
-		if (mages.length == 0)
-			this.Die()
 	}
 
 	FindTarget() {
-		return (this.target = FindClosest(1000000, mages, this))
+		let attempt
+		if (mages.length)
+			attempt = FindClosest(1000000, mages, this)
+		else
+			attempt = FindClosest(1000000, final_targets, this)
+		return (this.target = attempt)
 	}
 	Remove() {
 		enemies = enemies.filter((e) => e != this)
@@ -342,9 +360,17 @@ class Enemy extends Entity {
 			return
 		}
 		if (!this.FindTarget()) return
-		let distance = distance_between(this.pos, this.target?.pos)
-		let pos = move_towards(this.pos, this.target?.pos, this.speed)
-		if (distance < this.atkRange) {
+		let pos
+		let distance
+		if (this.element.hasClass('fast')) {
+			pos = move_towards(this.pos, {x: this.target?.pos.x+(this.target?.pos.x>this.pos.x?-2.9:2.9), y:this.target?.pos.y}, this.speed)
+			distance = distance_between(this.pos, {x: this.target?.pos.x+(this.target?.pos.x>this.pos.x?-2.9:2.9), y:this.target?.pos.y})
+		}
+		else {
+			pos = move_towards(this.pos, this.target?.pos, this.speed)
+			distance = distance_between(this.pos, this.target?.pos)
+		}
+		if ((this.element.hasClass('fast') && distance == 0) || (!this.element.hasClass('fast') && distance < this.atkRange)) {
 			this.element.removeClass('walking')
 			this.SetSkew(0, 0, 0)
 			this.Attack(this.target)
@@ -356,11 +382,11 @@ class Enemy extends Entity {
 				this.facingWest = true
 			else
 				this.facingWest = false
-			this.element.find('.body')
+			this.element.find('.body, .shadow, .hp')
 				.css('animation-duration', 910 * (this.speed*2.5))
 				.css('--flip-h', this.facingWest? 1:0)
-				.find('.hp')
-					.css('--flip-h', this.facingWest? 1:0)
+				// .find('.hp')
+				// 	.css('--flip-h', this.facingWest? 1:0)
 			if (this.target.pos.y - pos.y < 0)
 				this.element.addClass('back')
 			else
@@ -373,27 +399,51 @@ class Enemy extends Entity {
 		if (this.hp <= 0) return
 		this.atkCooldown = true
 		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
-		let p = new Projectile(
-			{x: (this.pos.x+(1.2*(this.facingWest? -1:1))), y: this.pos.y-6},
-			{x: this.target.pos.x, y: this.target.pos.y-3},
-			distance_between(this.pos, this.target.pos) * 10,
-			{delayEnd: 1000, callback: () => {
-				this.target.GetAttacked(this.atk)
-				p.element.addClass('reached-end')
-			}}
-		)
+		if (this.element.hasClass('caster')) {
+			let p = new Projectile(
+				{x: (this.pos.x+(1.2*(this.facingWest? -1:1))), y: this.pos.y-6},
+				{x: this.target.pos.x, y: this.target.pos.y-3},
+				distance_between(this.pos, this.target.pos) * 10,
+				{delayEnd: 1000, callback: () => {
+					this.target.GetAttacked(this.atk)
+					p.element.addClass('reached-end')
+				}}
+			)
+		}
+		else if (this.element.hasClass('fast')) {
+			setTimeout(() => this.target.GetAttacked(this.atk), 250)
+		}
+		else if (this.element.hasClass('heavy')) {
+			setTimeout(() => this.target.GetAttacked(this.atk), 250)
+		}
+		else
+			this.target.GetAttacked(this.atk)
 		// FlashRangefinder(this.element, this.atkRange)
 		this.element.removeClass('attacking')
 		this.element.addClass('attacking')
-		setTimeout(() => this.element.removeClass('attacking'), 910)
+		setTimeout(() => this.element.removeClass('attacking'), 500)
 	}
-	async Die() {
+	GetAttacked(hit, soundVolume=1) {
+		if (super.GetAttacked(hit, true, soundVolume) <= 0) {
+			let delay
+			if (this.element.hasClass('caster'))
+				delay = 2400
+			if (this.element.hasClass('fast'))
+				delay = 900
+			if (this.element.hasClass('heavy'))
+				delay = 1000
+			this.Die(delay)
+		}
+	}
+	Die(delay=1900) {
 		this.hp = -1
 		this.element.addClass('dead')
-		// this.element.css('animation', 'none')
-		// await new Promise(r => setTimeout(r, 100))
-		// this.element.css('animation', '')
-		setTimeout(() => this.Remove(), 2400)
+		setTimeout(() => {
+			this.element.animate({opacity:0}, {
+				duration: 1000,
+				done: () => this.Remove()
+			})
+		}, delay)
 	}
 }
 class Mage extends Entity {
@@ -406,17 +456,19 @@ class Mage extends Entity {
 		mages = mages.filter((e) => e != this)
 		super.Remove()
 	}
-	GetAttacked(hit) {
+	GetAttacked(hit, sound=true) {
 		let initial_hp = this.hp
-		super.GetAttacked(hit, true)
+		super.GetAttacked(hit, true, false)
 		if (this.hp < initial_hp) {
 			FlashOverlay('rgb(255 0 0 / 30%)')
-			PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
+			if (sound)
+				PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		} else if (this.hp > initial_hp)
 			FlashOverlay('rgb(0 255 0 / 50%)', 300)
 		if (this.hp <= 0) {
 			this.Die()
-			PlaySound('mage-death-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
+			if (sound)
+				PlaySound('mage-death-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		}
 	}
 	Die() {
@@ -461,15 +513,15 @@ class Powerup extends Entity {
 	Get() {
 		if (this.attribute == 'atkCooldownTime') {
 			player[this.attribute] *= 1 + possible_powerups[this.attribute].bonus
-			ShowMessage(`${possible_powerups[this.attribute].name}&nbsp;<span class="bonus">doubled</span>.`, {
+			ShowMessage(`${possible_powerups[this.attribute].name} #doubled`, {
 				duration: 3000,
 				stop: true,
 				notice: true,
 				blink: true,
 			})
 		}else if (this.attribute == 'heal') {
-			mages.forEach((m) => m.GetAttacked(min(m.maxHP-m.hp, m.maxHP*possible_powerups[this.attribute].bonus)))
-			ShowMessage(`All mages healed by&nbsp;<span class="bonus">${parseInt(possible_powerups[this.attribute].bonus*100)}%</span>`, {
+			mages.forEach((m) => m.GetAttacked(min(m.maxHP-m.hp, -m.maxHP*possible_powerups[this.attribute].bonus)))
+			ShowMessage(`All mages healed by #${parseInt(possible_powerups[this.attribute].bonus*100)}%`, {
 				duration: 3000,
 				stop: true,
 				notice: true,
@@ -477,7 +529,7 @@ class Powerup extends Entity {
 			})
 		} else {
 			player[this.attribute] += player[`initial_${this.attribute}`] * possible_powerups[this.attribute].bonus
-			ShowMessage(`${possible_powerups[this.attribute].name}&nbsp;<span class="bonus">${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%</span>${(player[`${this.attribute}`]/player[`initial_${this.attribute}`]==1+possible_powerups[this.attribute].bonus)?'':`\nCurrent bonus:&nbsp;<span class="bonus">${parseInt(player[`${this.attribute}`]/player[`initial_${this.attribute}`]*100)-100}%</span>`}`, {
+			ShowMessage(`${possible_powerups[this.attribute].name} #${((parseInt(possible_powerups[this.attribute].bonus)<0)?'-':'+')}${parseInt(possible_powerups[this.attribute].bonus*100)}%${(player[`${this.attribute}`]/player[`initial_${this.attribute}`]==1+possible_powerups[this.attribute].bonus)?'':`\nCurrent bonus: #${parseInt(player[`${this.attribute}`]/player[`initial_${this.attribute}`]*100)-100}%`}`, {
 				duration: 3000,
 				stop: true,
 				notice: true,
@@ -496,7 +548,7 @@ class Projectile extends Entity {
 	delayBegin
 	delayEnd
 
-	constructor(from, to, travelTime=100, options={delayBegin: 0, delayEnd: 0, nolaunch:false, callback:null}) {
+	constructor(from, to, travelTime=100, options={delayBegin: 0, delayEnd: 0, nolaunch:false, callback:null, clss:''}) {
 		super(1000, 'projectile')
 		this.travelTime = travelTime
 		if (options.delayBegin)
@@ -509,6 +561,8 @@ class Projectile extends Entity {
 			.css('--ttime', this.travelTime+'ms')
 			.find('.body')
 				.css('--angle', angle_between(from, to))
+		if (options.clss)
+			this.element.addClass(options.clss)
 		this.from = from
 		this.to = to
 		// if (options.nolaunch == undefined || options.nolaunch == false)
@@ -526,6 +580,94 @@ class Projectile extends Entity {
 			this.callback()
 		await new Promise(r => setTimeout(r, this.delayEnd))
 		this.Remove()
+	}
+}
+class LordOfLightning extends Enemy {
+	doneRoaring = false
+	facingEast
+
+	constructor() {
+		super({type:'lol', hp:1000, atk:1000, atkRange:5, atkCooldownTime:1000, speed:0})
+		enemies = enemies.filter((e) => e != this)
+		final_targets[1] = this
+		FindWithinRange(30, mages).forEach((t) => setTimeout(() => {
+			if (t.hp <= 0) return
+			let p = new Projectile(
+				{x: t.pos.x, y: t.pos.y},
+				{x: t.pos.x, y: t.pos.y},
+				0,
+				{
+					delayEnd: 1740,
+					callback: () => {
+						t.GetAttacked(this.atk, false)
+						p.element.addClass('reached-end')
+					},
+					clss: 'lightning'
+				}
+			)
+			p.element.find('.body').css('--flip-h', `${parseInt(random()*2)}`)
+		}, 600))
+		this.hp = 1000
+		this.maxHP = 1000
+		player.element.before(this.element)
+		this.SetPos(0,0)
+		this.element.addClass('roaring')
+		setTimeout(() => {
+			this.element.removeClass('roaring')
+			this.doneRoaring = true
+		}, 1600)
+	}
+
+	FindTarget() {
+		return (this.target = FindClosest(1000000, enemies.filter((e) => e != this), this))
+	}
+	Act() {
+		if (!this.doneRoaring) return
+		if (this.atkCooldown) return
+		if ((t_game_s*1000+t_game_ms*10) - this.timeOfLastAction < 300)
+			return
+		if (!this.FindTarget()) return
+		else {
+			if (this.pos.x - this.target.pos.x < 0)
+				this.facingEast = true
+			else
+				this.facingEast = false
+			this.element.find('.body')
+				.css('transform', `translateX(${this.facingEast? '-.8rem':'.8rem'}) translateY(calc(-50% + 1.35rem)) rotateY(calc(var(--flip-h) * 180deg))`)
+			this.element.find('.body, .shadow, .hp')
+					.css('animation-duration', 910 * (this.speed*2.5))
+					.css('--flip-h', this.facingEast? 1:0)
+			this.Attack(this.target)
+		}
+		this.timeOfLastAction = t_game_s*1000+t_game_ms*10
+	}
+	Attack() {
+		if (this.atkCooldown) return
+		this.atkCooldown = true
+		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
+		let targets = FindWithinRange(30, enemies, this.target)
+		targets.forEach((t) => setTimeout(() => {
+			if (t.hp <= 0) return
+			let p = new Projectile(
+				{x: t.pos.x, y: t.pos.y},
+				{x: t.pos.x, y: t.pos.y},
+				0,
+				{
+					delayEnd: 1740,
+					callback: () => {
+						log(1/targets.length)
+						t.GetAttacked(this.atk, false, 1/targets.length, false)
+						p.element.addClass('reached-end')
+					},
+					clss: 'lightning'
+				}
+			)
+			p.element.find('.body').css('--flip-h', `${parseInt(random()*2)}`)
+		}, 600))
+		// FlashRangefinder(this.element, this.atkRange)
+		this.element.removeClass('attacking')
+		this.element.addClass('attacking')
+		setTimeout(() => this.element.removeClass('attacking'), this.atkCooldownTime-50)
 	}
 }
 // ?------------ Runtime variables ------------ //
@@ -557,6 +699,9 @@ let EntityID = 0
 let NodeID = 0
 
 let player = new Player()
+let lord
+let final_targets = [player, lord]
+let final_stand = false
 // -------------------------------------------- //
 // ?------------- The Juicy Stuff ------------- //
 // -------------------------------------------- //
@@ -808,12 +953,6 @@ function GameStart() {
 	if ($controls.css('opacity') > 0)
 		$controls.animate({opacity: 0}, 500)
 
-	// * Display starting message
-	setTimeout(() => {
-		ShowMessage('Enemies will come,\nprotect the cultists.')
-		ShowMessage('Be careful where you walk.')
-	}, 2000)
-
 	// * Start game loop
 	int_game_loop = setInterval(GameLoop, 32)
 
@@ -836,7 +975,7 @@ function GameStart() {
 		if (t_game_s == 0 && t_game_m == (G_STAGES.length-1 - g_stage)) {
 			g_stage++
 			clearInterval(int_spawner)
-			int_spawner = setInterval(() => SpawnEnemies(1, G_STAGES[g_stage].stats), G_STAGES[g_stage].interval)
+			int_spawner = setInterval(() => SpawnEnemies(G_STAGES[g_stage].number, G_STAGES[g_stage].stats), G_STAGES[g_stage].interval)
 			if (g_stage == 0) {
 				ShowMessage(G_STAGES[g_stage].message)
 			}
@@ -863,7 +1002,6 @@ function GameStart() {
 				if (e.key == '1') {
 					$msg.stop(false)
 					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
-					g_stage++
 					new Powerup(choices[0])
 					game_paused_time += Date.now() - game_pause_start
 					game_paused = false
@@ -873,7 +1011,6 @@ function GameStart() {
 				if (e.key == '2') {
 					$msg.stop(false)
 					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
-					g_stage++
 					new Powerup(choices[1])
 					game_paused_time += Date.now() - game_pause_start
 					game_paused = false
@@ -894,7 +1031,7 @@ function GameLoop() {
 	if (!document.hasFocus())
 		Object.keys(player.movement).forEach(k => (k != 'able') ? player.movement[k] = false : null)
 	// * End game
-	if (mages.length == 0)
+	if (mages.length == 0 && !final_stand)
 		GameEnd('mages')
 
 	player.movement.is = (
@@ -912,6 +1049,7 @@ function GameLoop() {
 	// * Render player-connectedNode line
 	player.line?.remove()
 	player.line = DrawLine(player.pos, player.connectedNode.pos)
+	if (lord) lord.Act()
 	FindWithinRange(PLAYER_PICKUP_RANGE, powerups).forEach((p) => p.Get())
 	DoMovement()
 	DoBoundaryCheck()
@@ -921,10 +1059,25 @@ function GameLoop() {
 }
 function GameEnd(reason='') {
 	log(`GameEnd: ${reason}`)
-	$controls.stop().animate({opacity: 0}, 300)
-	hum.fade(1, 0, 50)
+	if (final_stand) return
 	// return
+
+	if (reason == 'time') {
+		final_stand = true
+		ShowMessage('He has come.')
+		lord = new LordOfLightning()
+		setTimeout(() => {
+			ShowMessage('Your work is done.\nYou are free.', {duration:99999999999999})
+		}, 2000)
+		setInterval(() => {
+			SpawnEnemies(parseInt(random()*5), G_STAGES[parseInt(random()*G_STAGES.length)].stats)
+		}, 500)
+		return
+	}
+
 	game_over = true
+	hum.fade(1, 0, 50)
+	$controls.stop().animate({opacity: 0}, 300)
 	clearInterval(int_game_loop)
 	
 	// if (reason == 'mages') {
@@ -1250,10 +1403,10 @@ function FindClosest(range=PLAYER_ATK_RNG, list=entities, start=player) {
 	}
 	return closest
 }
-function FindWithinRange(range=PLAYER_ATK_RNG, list=entities) {
+function FindWithinRange(range=PLAYER_ATK_RNG, list=entities, start=player) {
 	let targets = []
 	list.forEach(inter => {
-		let distance = distance_between(player.pos, inter.pos)
+		let distance = distance_between(start.pos, inter.pos)
 		if (distance <= range)
 			targets.push(inter)
 	})
@@ -1268,28 +1421,34 @@ function ShowMessage(msg='', options={duration:3000, stop:false, doublestop:fals
 		target.stop(false)
 	if (options.doublestop)
 		target.stop(true)
-	target.animate({opacity:1}, {
-		duration: 300,
-		start: () => {
-			blabber.play()
-			let char = 1
-			let reveal = setInterval(() => {
-				if (msg[char-1] == '\\' && msg[char] == 'n')
-					char++
-					target.html(msg.slice(0, char).replaceAll('\n', '<br>'))
+	target.html('')
+	target
+		.animate({opacity:1}, {
+			duration: 300,
+			start: () => {
+				if (options.notice) null
+				else
+					blabber.play()
+				let char = 1
+				let reveal = setInterval(() => {
+					if (msg[char] == '\\' && msg[char+1] && msg[char+1] == 'n')
+						char++
+					target.html(msg.slice(0, char).replaceAll('\n', '<br>').replace('#', '<span class="bonus">').replace('#', '</span>'))
 					if (char == msg.length) {
+						if (options.notice) null
+						else
 						blabber.stop()
 						clearInterval(reveal)
 					}
 					char++
-			}, 64)
-		},
-		done: () => {
-			if (options.blink)
-				target.css('animation', '')
-					.css('animation', 'reveal .2s ease 6 alternate-reverse forwards')
+				}, 64)
 			},
-	})
+			done: () => {
+				if (options.blink)
+					target.css('animation', '')
+						.css('animation', 'reveal .2s ease 7 alternate forwards')
+				},
+		})
 		.delay(options.duration)
 		.animate({opacity:0}, {
 			duration: 300,
@@ -1342,6 +1501,29 @@ function DrawNode(at, radius='', appendTo=$graphics.find('#nodes'), depth='', ex
 	setTimeout(() => node.find('> .body.hidden').removeClass('hidden'), 50)
 	return node
 }
+function FindCycle() {
+	let visited = []
+	let finished = []
+	let line = [center]
+	return Search(center)
+
+	function Search(node=center) {
+		if (finished.includes(center))
+			return
+		if (visited.includes(node))
+			return node
+		visited.push(node)
+		node.neighbors.forEach((n) => {
+			let res = Search(n)
+			if (res) {
+				res.push(node)
+				return res
+			}
+		})
+		finished.push(node)
+		return []
+	}
+}
 
 // ?----------- Generator functions ----------- //
 function chaos_hash(inx, iny, offset=0){
@@ -1370,6 +1552,8 @@ const place_at_distance = (center, distance) => {
 }
 const move_towards = (starting_pos, target_pos, speed) => {
 	let distance = distance_between(starting_pos, target_pos)
+	if (distance <= speed)
+		return target_pos
 	if (distance == 0)
 		return 0
 	let ret = {

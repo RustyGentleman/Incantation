@@ -43,6 +43,24 @@
     opacity: 1;
   }
 }
+@-webkit-keyframes aftershock {
+  0% {
+    opacity: 0;
+    transform: rotateX(60deg) scale(2);
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+@keyframes aftershock {
+  0% {
+    opacity: 0;
+    transform: rotateX(60deg) scale(2);
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
 @-webkit-keyframes node-reveal {
   0% {
     opacity: 0;
@@ -239,7 +257,7 @@
     filter: contrast(0.5) brightness(1.5);
   }
 }
-@-webkit-keyframes bg-scroll-x {
+@-webkit-keyframes bg-scroll-walking {
   0% {
     background-position-x: 0%;
   }
@@ -247,7 +265,23 @@
     background-position-x: 100%;
   }
 }
-@keyframes bg-scroll-x {
+@keyframes bg-scroll-walking {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@-webkit-keyframes bg-scroll-attacking {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@keyframes bg-scroll-attacking {
   0% {
     background-position-x: 0%;
   }
@@ -269,6 +303,86 @@
   }
   100% {
     background-position-x: 100%;
+  }
+}
+@-webkit-keyframes bg-scroll-idle {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@keyframes bg-scroll-idle {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+@-webkit-keyframes enemy-fast-shadow-follow {
+  0% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(0rem) rotateY(calc(var(--flip-h) * 180deg));
+    transition: transform 250ms linear;
+  }
+  100% {
+    opacity: 0.5;
+    transform: rotateX(60deg) scale(1.5) translateX(calc(0.8rem - var(--flip-h) * 1.6rem)) rotateY(calc(var(--flip-h) * 180deg));
+    transition: transform 250ms linear;
+  }
+}
+@keyframes enemy-fast-shadow-follow {
+  0% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(0rem) rotateY(calc(var(--flip-h) * 180deg));
+    transition: transform 250ms linear;
+  }
+  100% {
+    opacity: 0.5;
+    transform: rotateX(60deg) scale(1.5) translateX(calc(0.8rem - var(--flip-h) * 1.6rem)) rotateY(calc(var(--flip-h) * 180deg));
+    transition: transform 250ms linear;
+  }
+}
+@-webkit-keyframes enemy-fast-shadow-death {
+  0% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(0rem) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  30% {
+    opacity: 0.5;
+    transform: rotateX(60deg) scale(1.5) translateX(-0.7rem) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  40% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1rem - var(--flip-h) * 2rem)) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  40% {
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1rem - var(--flip-h) * 2rem)) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  100% {
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1.1rem - var(--flip-h) * 1.6rem)) rotateY(calc(var(--flip-h) * 180deg));
+  }
+}
+@keyframes enemy-fast-shadow-death {
+  0% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(0rem) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  30% {
+    opacity: 0.5;
+    transform: rotateX(60deg) scale(1.5) translateX(-0.7rem) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  40% {
+    opacity: 1;
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1rem - var(--flip-h) * 2rem)) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  40% {
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1rem - var(--flip-h) * 2rem)) rotateY(calc(var(--flip-h) * 180deg));
+  }
+  100% {
+    transform: rotateX(60deg) scale(1.5) translateX(calc(-1.1rem - var(--flip-h) * 1.6rem)) rotateY(calc(var(--flip-h) * 180deg));
   }
 }
 * {
@@ -609,6 +723,8 @@ section#overlay {
   --filter: sepia(0);
   --flip-h: 0;
   --flip-v: 0;
+  --zind: 50;
+  z-index: var(--zind);
   transform: translateY(-50%) matrix(var(--matrix)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
   transform-origin: bottom center;
   transition: transform 56ms ease, filter 20ms ease;
@@ -623,10 +739,11 @@ section#overlay {
   position: absolute;
   top: -0.5rem;
   left: -0.5rem;
-  z-index: -1;
-  filter: blur(5px);
+  z-index: -10000000;
+  filter: blur(4px);
+  --flip-h: 0;
   --transform: skew(0);
-  transform: rotateX(60deg) scale(1.5) var(--transform);
+  transform: rotateX(60deg) rotateY(calc(var(--flip-h) * 180deg)) scale(1.5) var(--transform);
 }
 .entity .rangefinder {
   position: absolute;
@@ -679,18 +796,61 @@ section#overlay {
 }
 .enemy {
   --color: rgb(200,0,0);
-  --hue-shift: 20;
-  filter: hue-rotate(calc(var(--hue-shift) * 1deg));
 }
 .enemy .body {
-  background-image: url(assets/sprites/enemy-caster-idle.png);
+  width: 5rem;
+  height: 5rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/enemy-normal-idle.png);
+  background-position-x: 0%;
+  background-size: cover;
   border-radius: 100% 100% 0 0;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  transform: translateY(calc(-50% + 1.3rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
+}
+.enemy .shadow::before {
+  z-index: -1000;
+}
+.enemy.attacking .body {
+  background-image: url(assets/sprites/enemy-normal-attack.png);
+  -webkit-animation: bg-scroll-attacking 100ms steps(3, end);
+          animation: bg-scroll-attacking 100ms steps(3, end);
+  -webkit-animation-iteration-count: 1;
+          animation-iteration-count: 1;
+}
+.enemy.walking .body {
+  background-image: url(assets/sprites/enemy-normal-walk.png);
+  -webkit-animation: bg-scroll-walking 700ms steps(7, end) 0s infinite;
+          animation: bg-scroll-walking 700ms steps(7, end) 0s infinite;
+}
+.enemy.dead .body {
+  background-image: url(assets/sprites/enemy-normal-death.png) !important;
+  -webkit-animation: bg-scroll-death 1900ms steps(19, end) 0s 1 forwards !important;
+          animation: bg-scroll-death 1900ms steps(19, end) 0s 1 forwards !important;
+}
+.enemy.dead .shadow::before {
+  z-index: -10000;
+  -webkit-animation: hide 700ms ease 900ms 1 forwards;
+          animation: hide 700ms ease 900ms 1 forwards;
+}
+.enemy.back .body {
+  background-image: url(assets/sprites/enemy-normal-idle-back.png);
+}
+.enemy.back.attacking .body {
+  background-image: url(assets/sprites/enemy-normal-attack-back.png);
+}
+.enemy.back.walking .body {
+  background-image: url(assets/sprites/enemy-normal-walk-back.png);
+}
+.enemy.back.dead .body {
+  background-image: url(assets/sprites/enemy-normal-death-back.png) !important;
 }
 
-.enemy {
+.enemy.caster {
   filter: hue-rotate(calc(var(--hue-shift) * 1deg + 10deg));
 }
-.enemy .body {
+.enemy.caster .body {
   width: 3.3rem;
   height: 3.3rem;
   background-color: transparent;
@@ -700,39 +860,182 @@ section#overlay {
   border-radius: 100% 100% 0 0;
   transform: translateY(calc(-50% + 0.35rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
 }
-.enemy.attacking .body {
+.enemy.caster.attacking .body {
   background-image: url(assets/sprites/enemy-caster-attack.png);
-  -webkit-animation: bg-scroll-x 910ms steps(6, end);
-          animation: bg-scroll-x 910ms steps(6, end);
+  -webkit-animation: bg-scroll-attacking 910ms steps(6, end);
+          animation: bg-scroll-attacking 910ms steps(6, end);
   -webkit-animation-iteration-count: 1;
           animation-iteration-count: 1;
 }
-.enemy.walking .body {
+.enemy.caster.walking .body {
   background-image: url(assets/sprites/enemy-caster-walk.png);
-  -webkit-animation: bg-scroll-x 750ms steps(3, end) 0s infinite;
-          animation: bg-scroll-x 750ms steps(3, end) 0s infinite;
+  -webkit-animation: bg-scroll-walking 750ms steps(3, end) 0s infinite;
+          animation: bg-scroll-walking 750ms steps(3, end) 0s infinite;
 }
-.enemy.dead .body {
+.enemy.caster.dead .body {
   background-image: url(assets/sprites/enemy-caster-death.png) !important;
   -webkit-animation: bg-scroll-death 2400ms steps(15, end) 0s 1 forwards !important;
           animation: bg-scroll-death 2400ms steps(15, end) 0s 1 forwards !important;
 }
-.enemy.dead .shadow {
+.enemy.caster.dead .shadow {
   z-index: -10000;
   -webkit-animation: hide 1s ease 1s 1 forwards;
           animation: hide 1s ease 1s 1 forwards;
 }
-.enemy.back .body {
+.enemy.caster.back .body {
   background-image: url(assets/sprites/enemy-caster-idle-back.png);
 }
-.enemy.back.attacking .body {
+.enemy.caster.back.attacking .body {
   background-image: url(assets/sprites/enemy-caster-attack-back.png);
 }
-.enemy.back.walking .body {
+.enemy.caster.back.walking .body {
   background-image: url(assets/sprites/enemy-caster-walk-back.png);
 }
-.enemy.back.dead .body {
+.enemy.caster.back.dead .body {
   background-image: url(assets/sprites/enemy-caster-death-back.png) !important;
+}
+
+.enemy.fast {
+  filter: hue-rotate(calc(var(--hue-shift) * 1deg + 260deg));
+}
+.enemy.fast .body {
+  width: 5rem;
+  height: 5rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/enemy-fast-idle.png);
+  background-position-x: 0%;
+  background-size: cover;
+  border-radius: 100% 100% 0 0;
+  -webkit-animation: bg-scroll-idle 400ms steps(3, end) 0s infinite;
+          animation: bg-scroll-idle 400ms steps(3, end) 0s infinite;
+  transform: translateY(calc(-50% + 1.2rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
+}
+.enemy.fast .hp {
+  transform: translate(-50%, -1.5rem) rotateY(calc(var(--flip-h) * 180deg));
+}
+.enemy.fast.attacking .body {
+  background-image: url(assets/sprites/enemy-fast-attack.png);
+  -webkit-animation: bg-scroll-attacking 250ms steps(8, end) alternate;
+          animation: bg-scroll-attacking 250ms steps(8, end) alternate;
+  -webkit-animation-iteration-count: 2;
+          animation-iteration-count: 2;
+}
+.enemy.fast.attacking .shadow::before {
+  -webkit-animation: enemy-fast-shadow-follow 240ms ease-in-out 20ms 2 alternate forwards;
+          animation: enemy-fast-shadow-follow 240ms ease-in-out 20ms 2 alternate forwards;
+}
+.enemy.fast.walking .body {
+  background-image: url(assets/sprites/enemy-fast-walk.png);
+  -webkit-animation: bg-scroll-walking 400ms steps(7, end) 0s infinite;
+          animation: bg-scroll-walking 400ms steps(7, end) 0s infinite;
+}
+.enemy.fast.dead .body {
+  background-image: url(assets/sprites/enemy-fast-death.png) !important;
+  -webkit-animation: bg-scroll-death 900ms steps(8, end) 0s 1 forwards !important;
+          animation: bg-scroll-death 900ms steps(8, end) 0s 1 forwards !important;
+}
+.enemy.fast.dead .shadow::before {
+  z-index: -10000;
+  -webkit-animation: enemy-fast-shadow-death 900ms linear 270ms 1 alternate forwards;
+          animation: enemy-fast-shadow-death 900ms linear 270ms 1 alternate forwards;
+}
+.enemy.fast.back .body {
+  background-image: url(assets/sprites/enemy-fast-idle-back.png);
+}
+.enemy.fast.back.attacking .body {
+  background-image: url(assets/sprites/enemy-fast-attack-back.png);
+}
+.enemy.fast.back.walking .body {
+  background-image: url(assets/sprites/enemy-fast-walk-back.png);
+}
+.enemy.fast.back.dead .body {
+  background-image: url(assets/sprites/enemy-fast-death-back.png) !important;
+}
+
+.enemy.heavy {
+  filter: hue-rotate(calc(var(--hue-shift) * 1deg + 10deg));
+}
+.enemy.heavy .body {
+  width: 5rem;
+  height: 5rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/enemy-heavy-idle.png);
+  background-position-x: 0%;
+  background-size: cover;
+  border-radius: 100% 100% 0 0;
+  -webkit-animation: bg-scroll-idle 400ms steps(3, end) 0s infinite;
+          animation: bg-scroll-idle 400ms steps(3, end) 0s infinite;
+  transform: translateY(calc(-50% + 1.35rem)) scale(var(--scale)) rotateY(calc(var(--flip-h) * 180deg)) rotateX(calc(var(--flip-v) * 180deg));
+}
+.enemy.heavy.attacking .body {
+  background-image: url(assets/sprites/enemy-heavy-attack.png);
+  -webkit-animation: bg-scroll-attacking 500ms steps(10, end);
+          animation: bg-scroll-attacking 500ms steps(10, end);
+  -webkit-animation-iteration-count: 1;
+          animation-iteration-count: 1;
+}
+.enemy.heavy.walking .body {
+  background-image: url(assets/sprites/enemy-heavy-walk.png);
+  -webkit-animation: bg-scroll-walking 800ms steps(7, end) 0s infinite;
+          animation: bg-scroll-walking 800ms steps(7, end) 0s infinite;
+}
+.enemy.heavy.dead .body {
+  background-image: url(assets/sprites/enemy-heavy-death.png) !important;
+  -webkit-animation: bg-scroll-death 1000ms steps(10, end) 0s 1 forwards !important;
+          animation: bg-scroll-death 1000ms steps(10, end) 0s 1 forwards !important;
+}
+.enemy.heavy.dead .shadow::before {
+  -webkit-animation: none;
+          animation: none;
+  transform: rotateX(60deg) scale(1.5) translateX(0.25rem);
+  transition: transform 200ms steps(2, start) 200ms;
+}
+.enemy.heavy.back .body {
+  background-image: url(assets/sprites/enemy-heavy-idle-back.png);
+}
+.enemy.heavy.back.attacking .body {
+  background-image: url(assets/sprites/enemy-heavy-attack-back.png);
+}
+.enemy.heavy.back.walking .body {
+  background-image: url(assets/sprites/enemy-heavy-walk-back.png);
+}
+.enemy.heavy.back.dead .body {
+  background-image: url(assets/sprites/enemy-heavy-death-back.png) !important;
+}
+
+#lord-of-lightning .body {
+  width: 10rem;
+  height: 10rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/lord-of-lightning-idle.png);
+  background-position-x: 0%;
+  background-size: cover;
+  border-radius: 100% 100% 0 0;
+  -webkit-animation: bg-scroll-idle 600ms steps(5, end) 0s infinite;
+          animation: bg-scroll-idle 600ms steps(5, end) 0s infinite;
+  transform: translateX(0.8rem) translateY(calc(-50% + 1.35rem)) rotateY(calc(var(--flip-h) * 180deg));
+}
+#lord-of-lightning .shadow::before {
+  transform: rotateX(60deg) rotateY(calc(var(--flip-h) * 180deg)) scale(3.5) var(--transform);
+  filter: blur(3px);
+}
+#lord-of-lightning .hp {
+  transform: translate(-0.8rem, -2rem) translateX(-50%) rotateY(calc(var(--flip-h) * 180deg));
+}
+#lord-of-lightning.attacking .body {
+  height: 12.5rem;
+  background-image: url(assets/sprites/lord-of-lightning-attack.png);
+  -webkit-animation: bg-scroll-attacking 1000ms steps(17, end) !important;
+          animation: bg-scroll-attacking 1000ms steps(17, end) !important;
+  -webkit-animation-iteration-count: 1;
+          animation-iteration-count: 1;
+}
+#lord-of-lightning.roaring .body {
+  background-image: url(assets/sprites/lord-of-lightning-roar.png);
+  -webkit-animation: bg-scroll-walking 1500ms steps(14, end) 0s alternate forwards;
+          animation: bg-scroll-walking 1500ms steps(14, end) 0s alternate forwards;
+  -webkit-animation-iteration-count: 1;
+          animation-iteration-count: 1;
 }
 
 .mage {
@@ -907,8 +1210,36 @@ section#overlay {
   transform: translateY(-50%) rotate(calc(90deg + var(--angle) * 1rad));
 }
 .projectile.reached-end .body {
-  -webkit-animation: bg-scroll-x 500ms steps(5, end) 1 forwards;
-          animation: bg-scroll-x 500ms steps(5, end) 1 forwards;
+  -webkit-animation: bg-scroll-walking 500ms steps(5, end) 1 forwards;
+          animation: bg-scroll-walking 500ms steps(5, end) 1 forwards;
+}
+
+.projectile.lightning {
+  --angle: 0deg !important;
+  filter: none;
+}
+.projectile.lightning .body {
+  height: 15rem;
+  width: 15rem;
+  background-color: transparent;
+  background-image: url(assets/sprites/lightning.png);
+  background-position-x: 0%;
+  background-size: cover;
+  -webkit-animation: bg-scroll-idle 1740ms steps(28, end) 0s infinite normal forwards;
+          animation: bg-scroll-idle 1740ms steps(28, end) 0s infinite normal forwards;
+  transform: translateY(-50%) rotateY(calc(var(--flip-h) * 180deg));
+  filter: none;
+}
+.projectile.lightning .shadow {
+  display: initial;
+}
+.projectile.lightning .shadow::before {
+  background-color: red;
+  filter: blur(5px);
+  transform: rotateX(60deg) scale(10);
+  opacity: 0;
+  -webkit-animation: reveal 100ms ease-in-out 100ms 1, hide 100ms ease-in-out 200ms 1 forwards, aftershock 600ms ease-in-out 700ms 2 alternate forwards;
+          animation: reveal 100ms ease-in-out 100ms 1, hide 100ms ease-in-out 200ms 1 forwards, aftershock 600ms ease-in-out 700ms 2 alternate forwards;
 }
 
 body.low-graphics section#overlay {
