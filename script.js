@@ -5,6 +5,7 @@
 // ?----------- Pretty console logs ----------- //
 const logcss = `font-family: 'JetBrains Mono', monospace;text-shadow: 0 0 10px black, 0 0 10px black;background: linear-gradient(to right, #4d94ff 0%, #4d94ff 8px, rgb(77 148 255 / 30%) 8px, transparent 50px);color: #4d94ff;padding: 2px 0 2px 30px;`
 const warncss = `font-family: 'JetBrains Mono', monospace;text-shadow: 0 0 10px black, 0 0 10px black;background: linear-gradient(to right, #ffa621 0%, #ffa621 0% 8px, rgb(255 166 33 / 30%) 8px, transparent 50px);color: #ffa621;padding: 2px 0 2px 30px;`
+// const log = console.log
 const log = (e) => {
 	if (typeof(e) == 'object')
 		console.log(e)
@@ -115,15 +116,20 @@ const TIME_TO_WIN = 5*60*1000
 const SOUND_MUTED_DISTANCE = 70
 let soundID = 0
 let hum = new Howl({
-	src: ['assets/sound/hum.ogg'],
+	src: ['assets/sound/hum.mp3'],
 	volume: 0,
 	loop: true,
 	preload: true,
 })
 let blabber = new Howl({
-	src: ['assets/sound/blabber.ogg'],
+	src: ['assets/sound/blabber.mp3'],
 	volume: 1,
 	loop: true,
+	preload: true,
+})
+let music = new Howl({
+	src: ['assets/sound/song-try-4.mp3'],
+	volume: 1,
 	preload: true,
 })
 
@@ -224,7 +230,7 @@ class Entity {
 		this.pos.y = y
 		return this
 	}
-	GetAttacked(hit, skip_death=false, sound=0, pan=true) {
+	GetAttacked(hit, skip_death=false, sound=0, pan=1) {
 		if (this.hp <= 0) return
 		let initial_hp = this.hp
 		if (hit < 0)
@@ -241,14 +247,14 @@ class Entity {
 		if (sound) {
 			if (this.hp <= 0) {
 				if (pan)
-					PlaySound('death-[].ogg', {volume:sound, pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
+					PlaySound('death-[].mp3', {volume:sound, pan: pan*(this.pos.x-player.pos.x)/(player.atkRange*2)})
 				else
-					PlaySound('death-[].ogg', {volume:sound})
+					PlaySound('death-[].mp3', {volume:sound})
 			}
 			else if (pan)
-				PlaySound('hit-[].ogg', {volume:sound, pan: (this.pos.x-player.pos.x)/(player.atkRange*2)})
+				PlaySound('hit-[].mp3', {volume:sound, pan: pan*(this.pos.x-player.pos.x)/(player.atkRange*2)})
 			else
-				PlaySound('hit-[].ogg', {volume:sound})
+				PlaySound('hit-[].mp3', {volume:sound})
 		}
 		if (skip_death)
 			return this.hp
@@ -293,7 +299,7 @@ class Player extends Entity {
 	SetPos(x, y, skew = false) {
 		super.SetPos(x, y, skew)
 		if (!this.stepSoundCooldown) {
-			PlaySound('step-[].ogg', {volume:0.1})
+			PlaySound('step-[].mp3', {volume:0.1})
 			this.stepSoundCooldown = true
 			setTimeout(() => this.stepSoundCooldown = false, 75 / (this.speed/2 * ((this.movement.sprint||mouse.holdR)?SPRINT_MULTIPLIER:1)))
 		}
@@ -423,8 +429,8 @@ class Enemy extends Entity {
 		this.element.addClass('attacking')
 		setTimeout(() => this.element.removeClass('attacking'), 500)
 	}
-	GetAttacked(hit, soundVolume=1) {
-		if (super.GetAttacked(hit, true, soundVolume) <= 0) {
+	GetAttacked(hit, soundVolume=1, pan=1) {
+		if (super.GetAttacked(hit, true, soundVolume, pan) <= 0) {
 			let delay
 			if (this.element.hasClass('caster'))
 				delay = 2400
@@ -462,13 +468,13 @@ class Mage extends Entity {
 		if (this.hp < initial_hp) {
 			FlashOverlay('rgb(255 0 0 / 30%)')
 			if (sound)
-				PlaySound('mage-hit-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
+				PlaySound('mage-hit-[].mp3', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		} else if (this.hp > initial_hp)
 			FlashOverlay('rgb(0 255 0 / 50%)', 300)
 		if (this.hp <= 0) {
 			this.Die()
 			if (sound)
-				PlaySound('mage-death-[].ogg', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
+				PlaySound('mage-death-[].mp3', {distance: distance_between(this.pos, player.pos), pan: (this.pos.x-player.pos.x)/50})
 		}
 	}
 	Die() {
@@ -536,7 +542,7 @@ class Powerup extends Entity {
 				blink: true,
 			})
 		}
-		PlaySound('powerup-[].ogg')
+		PlaySound('powerup-[].mp3')
 		powerups = powerups.filter((p) => p != this)
 		super.Remove()
 	}
@@ -619,7 +625,7 @@ class LordOfLightning extends Enemy {
 	}
 
 	FindTarget() {
-		return (this.target = FindClosest(1000000, enemies.filter((e) => e != this), this))
+		return (this.target = FindClosest(30, enemies.filter((e) => e != this), this))
 	}
 	Act() {
 		if (!this.doneRoaring) return
@@ -645,25 +651,42 @@ class LordOfLightning extends Enemy {
 		if (this.atkCooldown) return
 		this.atkCooldown = true
 		setTimeout(() => this.atkCooldown = false, this.atkCooldownTime)
-		let targets = FindWithinRange(30, enemies, this.target)
-		targets.forEach((t) => setTimeout(() => {
-			if (t.hp <= 0) return
+		let targets = FindWithinRange(30, enemies.filter(e=>e!=this.target), this.target)
+		setTimeout(() => {
 			let p = new Projectile(
-				{x: t.pos.x, y: t.pos.y},
-				{x: t.pos.x, y: t.pos.y},
+				this.target.pos,
+				this.target.pos,
 				0,
 				{
 					delayEnd: 1740,
 					callback: () => {
-						log(1/targets.length)
-						t.GetAttacked(this.atk, false, 1/targets.length, false)
+						this.target.GetAttacked(this.atk, 1, 0.2)
 						p.element.addClass('reached-end')
+						p.element.css('--scale', '1.3')
 					},
 					clss: 'lightning'
 				}
 			)
-			p.element.find('.body').css('--flip-h', `${parseInt(random()*2)}`)
-		}, 600))
+		}, 600-parseInt(random()*100))
+		targets.forEach((t) => setTimeout(() => {
+			if (t.hp <= 0) return
+			let p = new Projectile(
+				t.pos,
+				t.pos,
+				0,
+				{
+					delayEnd: 174000,
+					callback: () => {
+						t.GetAttacked(this.atk, 1/targets.length, 0.2)
+						p.element.addClass('reached-end')
+						p.element.css('--scale', '0.7')
+					},
+					clss: 'lightning'
+				}
+			)
+			p.element.find('.body')
+					.css('--flip-h', `${parseInt(random()*2)}`)
+		}, 600+parseInt(random()*300)))
 		// FlashRangefinder(this.element, this.atkRange)
 		this.element.removeClass('attacking')
 		this.element.addClass('attacking')
@@ -677,6 +700,7 @@ let game_over = false
 let game_paused = false
 let game_pause_start
 let game_paused_time = 0
+let display_mode
 let int_game_loop
 let int_spawner
 let t_game_end
@@ -843,7 +867,7 @@ $(function(){
 	// * Animate incantation lines appearing (+Growl and Hum)
 	setTimeout(() => {
 		// * Growl:
-		PlaySound('activation.ogg')
+		PlaySound('activation.mp3')
 		let circlelines = $('#circle-lines > path')
 		circlelines.each((i, e) => {
 			setTimeout(() => {
@@ -937,7 +961,8 @@ $(function(){
 })
 
 // ?------------- Game functions -------------- //
-function GameStart() {
+function GameStart(disp=false) {
+	display_mode = disp
 	// * Hide readyup text
 	$('#readyup').remove()
 
@@ -964,6 +989,7 @@ function GameStart() {
 		if (document.hidden) return
 		if (game_paused) return
 		if (game_over) return clearInterval(int_timer)
+		if (display_mode) return
 
 		let time = t_game_end - (Date.now() - game_paused_time)
 		if (time <= 0) {
@@ -984,6 +1010,7 @@ function GameStart() {
 			if (t_game_m >= 5) return
 			// * Offer to choose a boon
 			log('Timer: Pausing game to offer boons')
+			music.pause()
 			game_paused = true
 			game_pause_start = Date.now()
 			hum.fade(1, 0, 100)
@@ -998,30 +1025,28 @@ function GameStart() {
 			choices = [Object.keys(possible_powerups)[choices[0]], Object.keys(possible_powerups)[choices[1]]]
 			ShowMessage(`Pick a boon:\n[1] ${possible_powerups[choices[0]].name}\n[2] ${possible_powerups[choices[1]].name}`, {duration: 99999999999, doublestop:true})
 			//- Spawn boon and continue game once selected
-			$(document.body).one('keydown', (e) => {
-				if (e.key == '1') {
-					$msg.stop(false)
-					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
-					new Powerup(choices[0])
-					game_paused_time += Date.now() - game_pause_start
-					game_paused = false
-					hum.fade(0, 1, 100)
-					log('Timer: Boon picked')
-				}
-				if (e.key == '2') {
-					$msg.stop(false)
-					ShowMessage(G_STAGES[g_stage].message, {duration:4000})
-					new Powerup(choices[1])
-					game_paused_time += Date.now() - game_pause_start
-					game_paused = false
-					hum.fade(0, 1, 100)
-					log('Timer: Boon picked')
-				}
-			})
-
+			$(document.body).one('keydown', (e) => PickBoons(e, choices))
 			//- 
 		}
 		$timer.text(`${String(t_game_m=parseInt(time/60000)).padStart(2, '0')}:${String(t_game_s=parseInt(time/1000%60)).padStart(2, '0')}`)
+
+		function PickBoons(e, choices) {
+			if (e.key != '1' && e.key != '2') {
+				$(document.body).one('keydown', (e) => PickBoons(e, choices))
+				return
+			}
+			$msg.stop(false)
+			ShowMessage(G_STAGES[g_stage].message, { duration: 4000 })
+			game_paused_time += Date.now() - game_pause_start
+			game_paused = false
+			hum.fade(0, 1, 100)
+			music.play()
+			log('Timer: Boon picked')
+			if (e.key == '1')
+				new Powerup(choices[0])
+			else if (e.key == '2')
+				new Powerup(choices[1])
+		}
 	}, 250)
 }
 function GameLoop() {
@@ -1055,6 +1080,7 @@ function GameLoop() {
 	DoBoundaryCheck()
 	DoAttack()
 	DoGraphing()
+	if (display_mode) return
 	DoEnemyActions()
 }
 function GameEnd(reason='') {
@@ -1070,8 +1096,8 @@ function GameEnd(reason='') {
 			ShowMessage('Your work is done.\nYou are free.', {duration:99999999999999})
 		}, 2000)
 		setInterval(() => {
-			SpawnEnemies(parseInt(random()*5), G_STAGES[parseInt(random()*G_STAGES.length)].stats)
-		}, 500)
+			SpawnEnemies(parseInt(random()*3), G_STAGES[parseInt(random()*G_STAGES.length)].stats)
+		}, 1000)
 		return
 	}
 
@@ -1096,6 +1122,8 @@ function SpawnEnemies(number=1, stats={type:'', hp:ENEMY_HP, atk:ENEMY_ATK, atkR
 	if (!spawn_enemies) return
 	if (game_paused) return
 	if (game_over) return
+	if (enemies.length >= 30) return
+	if (display_mode) return
 	while (number > 0) {
 		new Enemy(stats)
 		--number
@@ -1238,7 +1266,7 @@ function DoAttack() {
 		if (player.attackCooldown) return
 		let targets = FindWithinRange(player.atkRange, enemies)
 		if (targets.length == 0) {
-			PlaySound('miss-[].ogg', {volume:1})
+			PlaySound('miss-[].mp3', {volume:1})
 		}
 		targets.forEach((t) => {
 			t.GetAttacked(player.atk)

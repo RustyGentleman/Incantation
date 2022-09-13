@@ -1188,8 +1188,9 @@ section#overlay {
 .projectile {
   --ttime: 300ms;
   --angle: 0deg;
+  --scale: 1;
   transition: transform var(--ttime) linear;
-  transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin));
+  transform: translate(calc(var(--x) * 1vmin), calc(var(--y) * 1vmin)) scale(var(--scale));
   filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10));
   box-shadow: none;
 }
@@ -1220,13 +1221,13 @@ section#overlay {
 }
 .projectile.lightning .body {
   height: 15rem;
-  width: 15rem;
+  width: 14rem;
   background-color: transparent;
   background-image: url(assets/sprites/lightning.png);
   background-position-x: 0%;
   background-size: cover;
-  -webkit-animation: bg-scroll-idle 1740ms steps(28, end) 0s infinite normal forwards;
-          animation: bg-scroll-idle 1740ms steps(28, end) 0s infinite normal forwards;
+  -webkit-animation: bg-scroll-idle 1740ms steps(28, end) 0s 1 normal forwards;
+          animation: bg-scroll-idle 1740ms steps(28, end) 0s 1 normal forwards;
   transform: translateY(-50%) rotateY(calc(var(--flip-h) * 180deg));
   filter: none;
 }
