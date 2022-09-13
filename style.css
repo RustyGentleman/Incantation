@@ -526,12 +526,48 @@ section#intro #premise #p7 {
 }
 
 section#UI {
-  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10));
+  filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10));
 }
 section#UI > div {
   display: flex;
   place-content: center;
   align-items: center;
+}
+section#UI #settings {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 1rem;
+}
+section#UI #settings > div {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+section#UI #settings input[type=range] {
+  width: calc(100% - 4rem);
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  background: none;
+}
+section#UI #settings input[type=range]::-webkit-slider-thumb {
+  z-index: 10;
+  -webkit-appearance: none;
+          appearance: none;
+  background: white;
+  height: 0.7rem;
+  width: 0.7rem;
+  margin-top: -0.1rem;
+  box-shadow: 0 0 0 0.1rem rgb(10, 10, 10);
+}
+section#UI #settings input[type=range]::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+          appearance: none;
+  background: rgb(200, 200, 200);
+  height: 0.5rem;
 }
 section#UI #timer {
   opacity: 0;
@@ -570,6 +606,9 @@ section#UI #readyup {
 }
 
 section#controls {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -685,6 +724,7 @@ section#controls .mouse.left::before {
 }
 
 section#overlay {
+  pointer-events: none;
   z-index: 10000;
   mix-blend-mode: overlay;
   background-image: url(assets/sprites/dither.png);

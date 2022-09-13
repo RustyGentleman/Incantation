@@ -272,11 +272,40 @@ section#intro
          --delay-reveal: 20s
 
 section#UI
-   filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10))
+   filter: drop-shadow(0 0 0.3rem rgb(10, 10, 10)) //drop-shadow(0 0 0.3rem rgb(10, 10, 10)) drop-shadow(0 0 0.3rem rgb(10, 10, 10))// drop-shadow(0 0 0.3rem rgb(10, 10, 10))
    > div
       display: flex
       place-content: center
       align-items: center
+   #settings
+      display: flex
+      flex-direction: column
+      position: absolute
+      bottom: 0
+      right: 0
+      padding: 1rem
+      >div
+         width: 100%
+         display: flex
+         justify-content: space-between
+      .value
+      input[type="range"]
+         width: calc(100% - 4rem)
+         appearance: none
+         background: none
+         &::-webkit-slider-thumb
+            z-index: 10
+            appearance: none
+            background: white
+            height: .7rem
+            width: .7rem
+            margin-top: -.1rem
+            box-shadow: 0 0 0 .1rem rgb(10, 10, 10)
+            // outline: .1rem rgb(10, 10, 10)
+         &::-webkit-slider-runnable-track
+            appearance: none
+            background: rgb(200, 200, 200)
+            height: .5rem
    #timer
       opacity: 0
       font-size: 3rem
@@ -307,6 +336,9 @@ section#UI
       animation: blink 1s infinite 7.3s
 
 section#controls
+   pointer-events: none
+   position: absolute
+   top: 0
    display: flex
    flex-direction: column
    justify-content: flex-start
@@ -406,6 +438,7 @@ section#controls
          background-image: url('assets/sprites/mouseL.png')
 
 section#overlay
+   pointer-events: none
    z-index: 10000
    mix-blend-mode: overlay
    background-image: url(assets/sprites/dither.png)

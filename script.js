@@ -128,7 +128,7 @@ let blabber = new Howl({
 	preload: true,
 })
 let music = new Howl({
-	src: ['assets/sound/song-try-4.mp3'],
+	src: ['assets/sound/music.mp3'],
 	volume: 1,
 	preload: true,
 })
@@ -144,6 +144,7 @@ let $controls
 let center
 let $msg
 let $timer
+let $settings
 // ?--------------- Graph stuff --------------- //
 let nodes = []
 let lines = []
@@ -462,9 +463,9 @@ class Mage extends Entity {
 		mages = mages.filter((e) => e != this)
 		super.Remove()
 	}
-	GetAttacked(hit, sound=true) {
+	GetAttacked(hit, sound=1) {
 		let initial_hp = this.hp
-		super.GetAttacked(hit, true, false)
+		super.GetAttacked(hit, true, sound)
 		if (this.hp < initial_hp) {
 			FlashOverlay('rgb(255 0 0 / 30%)')
 			if (sound)
@@ -605,7 +606,8 @@ class LordOfLightning extends Enemy {
 				{
 					delayEnd: 1740,
 					callback: () => {
-						t.GetAttacked(this.atk, false)
+						t.GetAttacked(this.atk, 1/mages.length)
+						log(1/mages.length)
 						p.element.addClass('reached-end')
 					},
 					clss: 'lightning'
@@ -701,6 +703,7 @@ let game_paused = false
 let game_pause_start
 let game_paused_time = 0
 let display_mode
+let sfx_vol = 1
 let int_game_loop
 let int_spawner
 let t_game_end
@@ -743,7 +746,7 @@ $(function(){
 	$('#intro').on('mouseenter', () => mouse.inPlayArea = true)
 	$('#intro').on('mouseleave', () => mouse.inPlayArea = false)
 	$('*').on('selectstart', () => {return false})
-	$($overlay).on('contextmenu', (e) => e.preventDefault())
+	$($('#UI')).on('contextmenu', (e) => e.preventDefault())
 	$(window).on('mousemove', (e) => mouse.pos = {
 		x: (e.clientX-$playarea[0].getBoundingClientRect().x)/vmin(1) - 50,
 		y: (e.clientY-$playarea[0].getBoundingClientRect().y)/vmin(1) - 50
@@ -782,7 +785,7 @@ $(function(){
 				break
 			case 67:
 				($controls.css('opacity') >= 0.5) ?
-					$controls.stop().animate({opacity: 0}, 500) : $controls.stop().animate({opacity: 1}, 500)
+					$controls.stop().animate({opacity: 0}, 100) : $controls.stop().animate({opacity: 1}, 100)
 				break
 			case 84:
 				player.SetPos(mouse.pos.x, mouse.pos.y)
@@ -806,6 +809,12 @@ $(function(){
 				}
 				else
 					debug_widgets = true
+				break
+			case 80:
+				if ($settings.css('display') == 'none')
+					$settings.fadeIn(100)
+				else
+					$settings.fadeOut(100)
 				break
 		}
 	})
@@ -891,6 +900,8 @@ $(function(){
 
 	// * Display controls
 	setTimeout(() => $controls.animate({opacity: 1}, 500), 20000)
+	// * Display audio settings
+	setTimeout(() => $settings.fadeIn(500), 20000)
 	
 	// * Spread dust motes over the circle
 	let motes_1_qnt = 15
@@ -958,11 +969,32 @@ $(function(){
 			})
 		}
 	}, 100)
+
+	// * Attach listeners to volume controls
+	if (get('sfx_volume'))
+		sfx_vol = +get('sfx_volume')
+	if (get('mus_volume'))
+		sfx_vol = +get('mus_volume')
+	$settings.find('#sfxv').on('input', function() {
+		$(this).next().text(this.value+'%')
+		sfx_vol = this.value/100
+		save('sfx_volume', this.value/100)
+	})
+		.val(sfx_vol*100)
+		.next().text(parseInt(sfx_vol*100)+'%')
+	$settings.find('#musv').on('input', function() {
+		$(this).next().text(this.value+'%')
+		music.volume(this.value/100)
+		save('mus_volume', this.value/100)
+	})
+		.val(music.volume()*100)
+		.next().text(parseInt(music.volume()*100)+'%')
 })
 
 // ?------------- Game functions -------------- //
 function GameStart(disp=false) {
 	display_mode = disp
+	music.play()
 	// * Hide readyup text
 	$('#readyup').remove()
 
@@ -977,6 +1009,12 @@ function GameStart(disp=false) {
 	// * Hide controls
 	if ($controls.css('opacity') > 0)
 		$controls.animate({opacity: 0}, 500)
+
+	// * Hide settings
+	if ($settings.css('display') == 'none')
+		$settings.fadeIn(100)
+	else
+		$settings.fadeOut(100)
 
 	// * Start game loop
 	int_game_loop = setInterval(GameLoop, 32)
@@ -1083,7 +1121,7 @@ function GameLoop() {
 	if (display_mode) return
 	DoEnemyActions()
 }
-function GameEnd(reason='') {
+async function GameEnd(reason='') {
 	log(`GameEnd: ${reason}`)
 	if (final_stand) return
 	// return
@@ -1102,10 +1140,14 @@ function GameEnd(reason='') {
 	}
 
 	game_over = true
+	music.fade(1, 0, 100)
 	hum.fade(1, 0, 50)
 	$controls.stop().animate({opacity: 0}, 300)
 	clearInterval(int_game_loop)
-	
+	if (reason == 'mages') {
+		new LordOfLightning().SetPos(100,100)
+		await new Promise(r => setTimeout(r, 600))
+	}
 	// if (reason == 'mages') {
 		enemies.forEach((e) => e.Die())
 		setTimeout(() => $playarea.children().animate({opacity: 0}, {duration: 3000}), 500)
@@ -1138,6 +1180,7 @@ function UpdateVariables() {
 	$controls = $('#controls')
 	$msg = $('#messages')
 	$timer = $('#timer')
+	$settings = $('#settings')
 }
 function DoMovement() {
 	player.element.find('.body')
@@ -1502,6 +1545,7 @@ function PlaySound(filename, options={shuffleQuantity:4, volume:1.0, distance:0,
 		options.cooldown = 300
 	if (options.pan==undefined)
 		options.pan = 0
+	options.volume *= sfx_vol
 	let src = `assets/sound/${filename.replace('[]', soundID++%((options.shuffleQuantity==undefined)?4:options.shuffleQuantity)+1)}`
 	let sound = new Howl({
 		src: [src],
