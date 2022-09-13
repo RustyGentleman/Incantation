@@ -2,7 +2,7 @@
 # Incantation #
 A fairly simple game developed as a project for Graph Theory class.  
   
-Defend the cultists while they chant to invoke the mighty Lord of Lightning.  
+Defend the cultists while they chant Nonagon Infinity to invoke the mighty Lord of Lightning.  
 Dark creatures will sense danger and come to try and cease it.  
 Hold your ground until the Lord of Lightning comes to smite them all!  
 
